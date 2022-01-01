@@ -1,0 +1,27 @@
+{
+    "name": "cryogen-api",
+    "version": "1.0.0",
+    "description": "API for the Cryogen website",
+    "main": "src/main.js",
+    "scripts": {
+        "start": "node src/main.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/pyragon/cryogen-api.git"
+    },
+    "keywords": [
+        "Cryogen",
+        "API"
+    ],
+    "author": "Pyragon",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/pyragon/cryogen-api/issues"
+    },
+    "homepage": "https://github.com/pyragon/cryogen-api#readme",
+    "dependencies": {
+        "express": "^4.17.2",
+        "mongoose": "^6.1.4"
+    }
+}
