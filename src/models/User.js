@@ -34,10 +34,6 @@ const userSchema = new Schema({
         required: false,
         default: null
     },
-    creationIP: {
-        type: String,
-        required: true
-    },
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);

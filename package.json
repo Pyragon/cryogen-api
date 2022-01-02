@@ -4,7 +4,7 @@
     "description": "API for the Cryogen website",
     "main": "src/main.js",
     "scripts": {
-        "start": "node src/main.js"
+        "start": "nodemon src/main.js"
     },
     "repository": {
         "type": "git",
@@ -21,7 +21,11 @@
     },
     "homepage": "https://github.com/pyragon/cryogen-api#readme",
     "dependencies": {
+        "cookie-parser": "^1.4.6",
+        "cors": "^2.8.5",
         "express": "^4.17.2",
-        "mongoose": "^6.1.4"
+        "mongoose": "^6.1.4",
+        "nodemon": "^2.0.15",
+        "walk": "^2.3.15"
     }
 }

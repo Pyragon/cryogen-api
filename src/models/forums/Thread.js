@@ -28,15 +28,23 @@ let threadSchema = new Schema({
     },
     lastPostTime: {
         type: Date,
-        required: true
+        required: false,
+        default: Date.now()
     },
     open: {
         type: Boolean,
-        required: true
+        required: false,
+        default: true
+    },
+    archived: {
+        type: Boolean,
+        required: false,
+        default: false
     },
     pinned: {
         type: Boolean,
-        required: true
+        required: false,
+        default: false
     },
 }, { timestamps: true });
 
