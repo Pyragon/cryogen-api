@@ -4,19 +4,19 @@ const Schema = mongoose.Schema;
 const userSchema = new Schema({
     username: {
         type: String,
-        require: true
+        required: true
     },
     hash: {
         type: String,
-        require: true
+        required: true
     },
-    salt: {
+    email: {
         type: String,
-        require: true
+        required: false,
     },
     rights: {
         type: Number,
-        require: false,
+        required: false,
         default: 0
     },
     donator: {

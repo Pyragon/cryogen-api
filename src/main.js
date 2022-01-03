@@ -22,7 +22,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(userMiddleware);
 app.use(cors({
-    origin: 'http://localhost:3000'
+    origin: ['http://localhost:3000']
 }))
 
 let walker = walk.walk('./src/routes', { followLinks: false });

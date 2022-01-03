@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+const User = require('../User');
+const Post = require('./Post');
+
 let threadSchema = new Schema({
     forumId: {
         type: Number,
@@ -10,26 +13,9 @@ let threadSchema = new Schema({
         type: String,
         required: true
     },
-    authorId: {
-        type: Number,
+    author: {
+        type: String,
         required: true
-    },
-    firstPostID: {
-        type: Number,
-        required: true
-    },
-    lastPostID: {
-        type: Number,
-        required: true
-    },
-    lastPostAuthorId: {
-        type: Number,
-        required: true
-    },
-    lastPostTime: {
-        type: Date,
-        required: false,
-        default: Date.now()
     },
     open: {
         type: Boolean,
@@ -47,6 +33,23 @@ let threadSchema = new Schema({
         default: false
     },
 }, { timestamps: true });
+
+threadSchema.methods.mapValues = async function() {
+    try {
+        let author = await User.findOne({ username: this.author });
+        this.author = author ? {
+            username: author.username,
+            rights: author.rights
+        } : {
+            username: 'Error',
+            rights: 0
+        };
+        return this;
+    } catch (err) {
+        console.error(err);
+    }
+    return this;
+};
 
 const Thread = mongoose.model('Thread', threadSchema);
 
