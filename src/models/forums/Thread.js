@@ -1,19 +1,19 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose-fill');
 const Schema = mongoose.Schema;
 
+const Subforum = require('./Subforum');
 const User = require('../User');
-const Post = require('./Post');
 
-let threadSchema = new Schema({
-    forumId: {
-        type: Number,
-        required: true
-    },
-    title: {
-        type: String,
+let schema = new Schema({
+    subforum: {
+        type: Subforum.schema,
         required: true
     },
     author: {
+        type: User.schema,
+        requried: true,
+    },
+    title: {
         type: String,
         required: true
     },
@@ -32,25 +32,47 @@ let threadSchema = new Schema({
         required: false,
         default: false
     },
-}, { timestamps: true });
+}, {
+    timestamps: true,
+    toJSON: {
+        virtuals: true
+    }
+});
 
-threadSchema.methods.mapValues = async function() {
+schema.fill('lastPost', async function(callback) {
     try {
-        let author = await User.findOne({ username: this.author });
-        this.author = author ? {
-            username: author.username,
-            rights: author.rights
-        } : {
-            username: 'Error',
-            rights: 0
-        };
-        return this;
+        let Post = require('./Post');
+        let post = await Post.findOne({ 'thread._id': this._id }).sort({ createdAt: -1 });
+        callback(null, post);
     } catch (err) {
         console.error(err);
+        callback(null, null);
     }
-    return this;
-};
+});
 
-const Thread = mongoose.model('Thread', threadSchema);
+schema.fill('firstPost', async function(callback) {
+    try {
+        let Post = require('./Post');
+        let post = await Post.findOne({ 'thread._id': this._id }).sort({ createdAt: 1 });
+        callback(null, post);
+    } catch (err) {
+        console.error(err);
+        callback(null, null);
+    }
+});
+
+schema.fill('postCount', async function(callback) {
+    try {
+        let Post = require('./Post');
+        let count = await Post.countDocuments({ 'thread._id': this._id });
+        callback(null, count - 1);
+    } catch (err) {
+        console.error(err);
+        callback(null, null);
+    }
+});
+
+
+const Thread = mongoose.model('Thread', schema);
 
 module.exports = Thread;

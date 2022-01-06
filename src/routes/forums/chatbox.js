@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const censor = require('../../utils/censor');
+const { formatMessage } = require('../../utils/format');
 
 const ChatboxMessage = require('../../models/forums/ChatboxMessage');
+const User = require('../../models/User');
 
 router.get('/', async(req, res) => {
     try {
@@ -11,7 +13,7 @@ router.get('/', async(req, res) => {
                 $gte: new Date(Date.now() - (30 * 60 * 1000))
             }
         }).sort({ createdAt: 1 });
-        res.status(200).send({ messages });
+        res.status(200).send({ messages: await messages });
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: err });
@@ -19,15 +21,32 @@ router.get('/', async(req, res) => {
 });
 
 router.post('/', async(req, res) => {
-    let message = censor(req.body.message);
+    // if (!res.loggedIn) {
+    //     res.status(401).send({ message: 'You must be logged in to post.' });
+    //     return;
+    // }
+    //TODO - permissions, check logged in
+    //TODO - switch to use socketio
+    //TODO - get user from res.user instead
+    let message = formatMessage(req.body.message);
+    message = censor(message);
+    if (message.length < 4 || message.length > 200) {
+        res.status(400).send({ message: 'Message must be between 4 and 200 characters long.' });
+        return;
+    }
+    let user = await User.findOne({ username: req.body.author });
+    if (!user) {
+        res.status(400).send({ message: 'User not found.' });
+        return;
+    }
     let chatboxMessage = new ChatboxMessage({
-        author: req.body.author,
+        author: user,
         message
     });
 
     try {
         let savedMessage = await chatboxMessage.save();
-        res.status(200).send(savedMessage);
+        res.status(200).send({ message: savedMessage, user: savedMessage.user });
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: err });

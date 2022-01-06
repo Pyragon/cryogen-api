@@ -2,14 +2,22 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 
 const User = require('../models/User');
+const Usergroup = require('../models/forums/Usergroup');
 const router = express.Router();
 
-const { formatNameForProtocol } = require('../utils/format');
+const { formatNameForProtocol, formatPlayerNameForDisplay } = require('../utils/format');
 
 router.post('/', async(req, res) => {
     //TODO - add request limiter to prevent brute force attacks
     let username = req.body.username;
     let password = req.body.password;
+    let rights;
+    try {
+        rights = parseInt(req.body.rights);
+    } catch (err) {
+        rights = 0;
+        console.error(err);
+    }
     if (!username || !password) {
         res.status(400).send({ message: 'Missing username or password.' });
         return;
@@ -34,12 +42,24 @@ router.post('/', async(req, res) => {
         res.status(400).send({ message: 'Username already exists.' });
         return;
     }
+    let group = req.body.displayGroup;
+    if (group) {
+        group = await Usergroup.findOne({ _id: group });
+        if (!group) {
+            res.status(400).send({ message: 'Invalid display group.' });
+            return;
+        }
+    }
+    let displayName = formatPlayerNameForDisplay(username);
     let email = req.body.email || null;
     let hash = await bcrypt.hash(password, 10);
     user = new User({
         username,
+        displayName,
         hash,
-        email
+        email,
+        rights,
+        displayGroup: group
     });
     try {
         await user.save();

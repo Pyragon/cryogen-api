@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-const User = require('../models/User');
-const Thread = require('../models/forums/Thread');
-const Post = require('../models/forums/Post');
+const User = require('../../models/User');
+const Thread = require('../../models/forums/Thread');
+const Post = require('../../models/forums/Post');
 
 
-router.get('/stats', async(req, res) => {
+router.get('/', async(req, res) => {
 
     try {
         let userCount = await User.countDocuments();

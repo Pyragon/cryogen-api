@@ -1,13 +1,16 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+const Thread = require('./Thread');
+const User = require('./../User');
+
 let schema = new Schema({
-    threadId: {
-        type: String,
+    thread: {
+        type: Thread.schema,
         required: true,
     },
     author: {
-        type: String,
+        type: User.schema,
         required: true,
     },
     content: {
@@ -19,8 +22,6 @@ let schema = new Schema({
         required: false,
     }
 }, { timestamps: true });
-
-schema.methods.mapValues = async function() {};
 
 const Post = mongoose.model('Post', schema);
 
