@@ -4,9 +4,9 @@ const User = require('../models/User');
 
 let middleware = async(req, res, next) => {
 
-    // get cookie from request
-    let cookie = req.cookies.sessionId;
-    if (!cookie) {
+    let sessionId = req.get('Authorization');
+
+    if (!sessionId) {
         res.loggedIn = false;
         next();
         return;
@@ -14,13 +14,12 @@ let middleware = async(req, res, next) => {
 
     try {
         //get session from database
-        let user = await User.findOne({ sessionId: cookie });
+        let user = await User.findOne({ sessionId });
         if (!user) {
             res.loggedIn = false;
             next();
             return;
         }
-
         res.loggedIn = true;
         res.user = user;
     } catch (err) {

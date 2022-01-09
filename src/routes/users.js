@@ -1,8 +1,11 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const { generateSecret, verify } = require('2fa-util');
 
 const User = require('../models/User');
 const Usergroup = require('../models/forums/Usergroup');
+const UserActivity = require('../models/forums/UserActivity');
 const router = express.Router();
 
 const { formatNameForProtocol, formatPlayerNameForDisplay } = require('../utils/format');
@@ -11,6 +14,7 @@ router.post('/', async(req, res) => {
     //TODO - add request limiter to prevent brute force attacks
     let username = req.body.username;
     let password = req.body.password;
+    let sessionId = req.body.sessionId;
     let rights;
     try {
         rights = parseInt(req.body.rights);
@@ -59,7 +63,8 @@ router.post('/', async(req, res) => {
         hash,
         email,
         rights,
-        displayGroup: group
+        displayGroup: group,
+        sessionId
     });
     try {
         await user.save();
@@ -92,10 +97,32 @@ router.delete('/:id', async(req, res) => {
     }
 });
 
+router.get('/auth', async(req, res) => {
+    if (!res.loggedIn)
+        res.status(200).json({ result: false });
+    else
+        res.status(200).json({ result: res.loggedIn, user: res.user });
+});
+
+router.post('/logout', async(req, res) => {
+    if (!res.loggedIn) {
+        console.error('not logged in');
+        res.status(401).send({ message: 'Not logged in.' });
+        return;
+    }
+    res.user.sessionId = '';
+    try {
+        await res.user.save();
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: 'Error logging out.' });
+    }
+});
+
 router.post('/auth', async(req, res) => {
     let username = req.body.username;
     let password = req.body.password;
-    let rememberMe = req.body.rememberMe;
     let otp = req.body.otp;
 
     username = formatNameForProtocol(username);
@@ -105,18 +132,57 @@ router.post('/auth', async(req, res) => {
         res.status(200).send({ success: false });
         return;
     }
-    if (user.tfaKey && !otp) {
-        res.status(200).send({ success: false, message: 'Two-factor authentication is enabled. Please provide the one-time password.' });
-        return;
+    if (user.tfaKey) {
+        if (!otp) {
+            res.status(200).send({ success: false, message: 'Two-factor authentication is enabled. Please provide the one-time password.' });
+            return;
+        }
+        let secret = user.tfaKey;
+        let verified = verify(secret, otp);
+        if (!verified) {
+            res.status(200).send({ success: false, message: 'Invalid one-time password.' });
+            return;
+        }
     }
+
     let valid = await bcrypt.compare(password, user.hash);
     let result = {
         success: valid,
     };
     if (valid) {
-
+        result.sessionId = crypto.randomBytes(16).toString('base64');
+        user.sessionId = result.sessionId;
+        result.user = await user.save();
     }
     res.status(200).send(result);
+});
+
+router.post('/activity', async(req, res) => {
+    if (!res.loggedIn) {
+        res.status(401).send({ message: 'Not logged in.' });
+        return;
+    }
+    let activity = req.body.activity;
+    if (!activity) {
+        res.status(400).send({ message: 'Missing activity.' });
+        return;
+    }
+    let userActivity = await UserActivity.findOne({ 'user._id': res.user._id });
+    if (!userActivity) {
+        userActivity = new UserActivity({
+            user: res.user,
+            activity: activity
+        });
+    } else {
+        userActivity.activity = activity;
+    }
+    try {
+        let savedActivity = await userActivity.save();
+        res.status(200).json(savedActivity);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: 'Error saving user activity.' });
+    }
 });
 
 module.exports = router;

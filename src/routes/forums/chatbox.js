@@ -21,10 +21,11 @@ router.get('/', async(req, res) => {
 });
 
 router.post('/', async(req, res) => {
-    // if (!res.loggedIn) {
-    //     res.status(401).send({ message: 'You must be logged in to post.' });
-    //     return;
-    // }
+    if (!res.loggedIn) {
+        res.status(401).send({ message: 'You must be logged in to post.' });
+        console.log('not logged in');
+        return;
+    }
     //TODO - permissions, check logged in
     //TODO - switch to use socketio
     //TODO - get user from res.user instead
@@ -34,19 +35,14 @@ router.post('/', async(req, res) => {
         res.status(400).send({ message: 'Message must be between 4 and 200 characters long.' });
         return;
     }
-    let user = await User.findOne({ username: req.body.author });
-    if (!user) {
-        res.status(400).send({ message: 'User not found.' });
-        return;
-    }
     let chatboxMessage = new ChatboxMessage({
-        author: user,
+        author: res.user,
         message
     });
 
     try {
         let savedMessage = await chatboxMessage.save();
-        res.status(200).send({ message: savedMessage, user: savedMessage.user });
+        res.status(200).send({ message: savedMessage });
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: err });

@@ -8,6 +8,10 @@ const userSchema = new Schema({
         type: String,
         required: true,
     },
+    avatar: {
+        type: String,
+        required: false,
+    },
     displayName: {
         type: String,
         required: true,
@@ -55,6 +59,10 @@ const userSchema = new Schema({
         required: false,
         default: null
     },
+    sessionId: {
+        type: String,
+        required: false,
+    }
 }, {
     timestamps: true,
     toJSON: {

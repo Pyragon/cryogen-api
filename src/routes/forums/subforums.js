@@ -1,5 +1,4 @@
 const express = require('express');
-const { setUserActivity } = require('../../utils/user-activity');
 const router = express.Router();
 
 const Subforum = require('../../models/forums/Subforum');
@@ -30,8 +29,6 @@ async function getSubforumChildren(parent = null, res) {
 
 router.get('/', async(_, res) => {
     getSubforumChildren(null, res);
-    if (res.loggedIn)
-        setUserActivity(res.user, 'Viewing Index');
 });
 
 router.get('/children/:id', async(req, res) => {

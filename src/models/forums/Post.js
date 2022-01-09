@@ -20,6 +20,11 @@ let schema = new Schema({
     edited: {
         type: Date,
         required: false,
+    },
+    thanks: {
+        type: [User.schema],
+        required: false,
+        default: [],
     }
 }, { timestamps: true });
 

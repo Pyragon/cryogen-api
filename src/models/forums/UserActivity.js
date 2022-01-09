@@ -14,6 +14,6 @@ let schema = new Schema({
     }
 }, { timestamps: true });
 
-const model = mongoose.model('model', schema);
+const model = mongoose.model('UserActivity', schema);
 
 module.exports = model;
