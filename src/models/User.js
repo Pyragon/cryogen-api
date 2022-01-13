@@ -1,4 +1,5 @@
 const mongoose = require('mongoose-fill');
+const Post = require('./forums/Post');
 const Schema = mongoose.Schema;
 
 const Usergroup = require('./forums/Usergroup');
@@ -42,11 +43,15 @@ const userSchema = new Schema({
         default: 0
     },
     displayGroup: {
-        type: Usergroup.schema,
+        type: Schema.Types.ObjectId,
+        ref: 'Usergroup',
         required: false
     },
     usergroups: {
-        type: [Usergroup.schema],
+        type: [{
+            type: Schema.Types.ObjectId,
+            ref: 'Usergroup',
+        }],
         required: false
     },
     recoveryQuestions: {
@@ -70,16 +75,17 @@ const userSchema = new Schema({
     }
 });
 
-userSchema.fill('postCount', async function(callback) {
-    try {
-        let Post = require('./Post');
-        let count = await Post.countDocuments({ 'author._id': this._id });
-        callback(null, count);
-    } catch (err) {
-        console.error(err);
-        callback(null, null);
-    }
-});
+userSchema.methods.getPostCount = async function() {
+    return await Post.countDocuments({ author: this._id });
+}
+
+userSchema.methods.getThanksReceived = async function() {
+    return 1;
+};
+
+userSchema.methods.getThanksGiven = async function() {
+    return 1;
+};
 
 const User = mongoose.model('User', userSchema);
 

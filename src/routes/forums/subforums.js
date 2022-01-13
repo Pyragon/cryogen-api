@@ -10,7 +10,7 @@ const DEFAULT_PERMISSIONS = null;
     //TODO - link to the actual default permissions
 })();
 
-async function getSubforumChildren(parent = null, res) {
+async function getSubforumChildren(parent = null, res, req) {
     try {
         if (parent != null) {
             parent = await Subforum.findById(parent);
@@ -19,7 +19,14 @@ async function getSubforumChildren(parent = null, res) {
                 return;
             }
         }
-        let subforums = await Subforum.find({ parent }).sort({ priority: 1 }).fill('extraData');
+        let subforums = await Subforum.find({ parent })
+            .sort({ priority: 1 })
+            .fill('extraData')
+            .populate('permissions');
+        subforums = subforums.filter(subforum => {
+            if (!subforum.permissions) return true;
+            return subforum.permissions.checkCanSee(res.user);
+        });
         res.status(200).send(subforums);
     } catch (err) {
         console.error(err);
@@ -27,17 +34,13 @@ async function getSubforumChildren(parent = null, res) {
     }
 }
 
-router.get('/', async(_, res) => {
-    getSubforumChildren(null, res);
-});
-
 router.get('/children/:id', async(req, res) => {
     let parentId = req.params.id;
     if (!parentId) {
         res.status(400).send({ message: 'No id provided.' });
         return;
     }
-    getSubforumChildren(parentId, res);
+    getSubforumChildren(parentId, res, req);
 });
 
 router.get('/:id', async(req, res) => {
@@ -46,8 +49,12 @@ router.get('/:id', async(req, res) => {
         res.status(400).send({ message: 'No id provided.' });
         return;
     }
-    let subforum = await Subforum.findById(id).fill('extraData');
+    let subforum = await Subforum.findById(id).fill('extraData').populate('permissions');
     res.status(200).send(subforum);
+});
+
+router.get('/', async(req, res) => {
+    getSubforumChildren(null, res, req);
 });
 
 router.post('/', async(req, res) => {

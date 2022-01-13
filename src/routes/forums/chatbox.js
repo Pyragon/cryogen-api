@@ -9,11 +9,20 @@ const User = require('../../models/User');
 router.get('/', async(req, res) => {
     try {
         let messages = await ChatboxMessage.find({
-            createdAt: {
-                $gte: new Date(Date.now() - (30 * 60 * 1000))
-            }
-        }).sort({ createdAt: 1 });
-        res.status(200).send({ messages: await messages });
+                createdAt: {
+                    $gte: new Date(Date.now() - (30 * 60 * 1000))
+                }
+            }).populate({
+                path: 'author',
+                model: 'User',
+                populate: [{
+                    path: 'displayGroup'
+                }, {
+                    path: 'usergroups'
+                }]
+            })
+            .sort({ createdAt: 1 });
+        res.status(200).send({ messages: messages });
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: err });
@@ -26,9 +35,8 @@ router.post('/', async(req, res) => {
         console.log('not logged in');
         return;
     }
-    //TODO - permissions, check logged in
+    //TODO - permissions
     //TODO - switch to use socketio
-    //TODO - get user from res.user instead
     let message = formatMessage(req.body.message);
     message = censor(message);
     if (message.length < 4 || message.length > 200) {

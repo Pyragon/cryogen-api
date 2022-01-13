@@ -13,7 +13,8 @@ router.get('/', async(req, res) => {
         let userCount = await User.countDocuments();
         let threadCount = await Thread.countDocuments();
         let postCount = await Post.countDocuments();
-        let online = await UserActivity.countDocuments({ lastActivity: { $gt: Date.now() - 1000 * 60 * 5 } });
+        let online = await UserActivity.countDocuments({ updatedAt: { $gt: Date.now() - (1000 * 60 * 5) } });
+        //TODO - get most online at a time
 
         let stats = {
             registered: userCount,
@@ -33,7 +34,7 @@ router.get('/', async(req, res) => {
 
 router.get('/online', async(req, res) => {
     try {
-        let online = await UserActivity.find({ lastActivity: { $gt: Date.now() - 1000 * 60 * 5 } });
+        let online = await UserActivity.find({ updatedAt: { $gt: Date.now() - (1000 * 60 * 5) } });
         res.status(200).send(online);
     } catch (err) {
         console.error(err);

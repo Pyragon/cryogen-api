@@ -6,11 +6,13 @@ const User = require('../User');
 
 let schema = new Schema({
     subforum: {
-        type: Subforum.schema,
+        type: Schema.Types.ObjectId,
+        ref: 'Subforum',
         required: true
     },
     author: {
-        type: User.schema,
+        type: Schema.Types.ObjectId,
+        ref: 'User',
         requried: true,
     },
     title: {
@@ -42,7 +44,16 @@ let schema = new Schema({
 schema.fill('lastPost', async function(callback) {
     try {
         let Post = require('./Post');
-        let post = await Post.findOne({ 'thread._id': this._id }).sort({ createdAt: -1 });
+        let post = await Post.findOne({ 'thread': this._id })
+            .sort({ createdAt: -1 }).populate({
+                path: 'author',
+                model: 'User',
+                populate: [{
+                    path: 'displayGroup'
+                }, {
+                    path: 'usergroups'
+                }]
+            })
         callback(null, post);
     } catch (err) {
         console.error(err);
@@ -53,7 +64,16 @@ schema.fill('lastPost', async function(callback) {
 schema.fill('firstPost', async function(callback) {
     try {
         let Post = require('./Post');
-        let post = await Post.findOne({ 'thread._id': this._id }).sort({ createdAt: 1 });
+        let post = await Post.findOne({ 'thread': this._id })
+            .sort({ createdAt: 1 }).populate({
+                path: 'author',
+                model: 'User',
+                populate: [{
+                    path: 'displayGroup'
+                }, {
+                    path: 'usergroups'
+                }]
+            })
         callback(null, post);
     } catch (err) {
         console.error(err);
@@ -64,7 +84,7 @@ schema.fill('firstPost', async function(callback) {
 schema.fill('postCount', async function(callback) {
     try {
         let Post = require('./Post');
-        let count = await Post.countDocuments({ 'thread._id': this._id });
+        let count = await Post.countDocuments({ 'thread': this._id });
         callback(null, count - 1);
     } catch (err) {
         console.error(err);

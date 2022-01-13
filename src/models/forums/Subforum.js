@@ -10,10 +10,12 @@ let schema = new Schema({
     },
     description: {
         type: String,
-        required: true,
+        required: false,
+        default: ''
     },
     parent: {
-        type: this,
+        type: Schema.Types.ObjectId,
+        ref: 'Subforum',
         required: false,
     },
     isCategory: {
@@ -21,7 +23,8 @@ let schema = new Schema({
         required: true,
     },
     permissions: {
-        type: Permissions.schema,
+        type: Schema.Types.ObjectId,
+        ref: 'Permissions',
         required: false,
     },
     priority: {
@@ -43,9 +46,20 @@ schema.fill('extraData', async function(callback) {
     try {
         let Post = require('./Post');
         let Thread = require('./Thread');
-        let post = await Post.findOne({ 'thread.subforum._id': this._id }).sort({ createdAt: -1 });
-        let totalThreads = await Thread.countDocuments({ 'subforum._id': this._id });
-        let totalPosts = await Post.countDocuments({ 'thread.subforum._id': this._id });
+        let post = await Post.findOne({ 'subforum': this._id })
+            .sort({ createdAt: -1 })
+            .populate({
+                path: 'author',
+                model: 'User',
+                populate: [{
+                    path: 'displayGroup'
+                }, {
+                    path: 'usergroups'
+                }]
+            })
+            .populate('thread');
+        let totalThreads = await Thread.countDocuments({ 'subforum': this._id });
+        let totalPosts = await Post.countDocuments({ 'subforum': this._id });
         let data = {
             lastPost: post,
             totalThreads,

@@ -127,7 +127,9 @@ router.post('/auth', async(req, res) => {
 
     username = formatNameForProtocol(username);
 
-    let user = await User.findOne({ username });
+    let user = await User.findOne({ username })
+        .populate('displayGroup')
+        .populate('usergroups');
     if (!user) {
         res.status(200).send({ success: false });
         return;
@@ -167,7 +169,7 @@ router.post('/activity', async(req, res) => {
         res.status(400).send({ message: 'Missing activity.' });
         return;
     }
-    let userActivity = await UserActivity.findOne({ 'user._id': res.user._id });
+    let userActivity = await UserActivity.findOne({ 'user': res.user._id });
     if (!userActivity) {
         userActivity = new UserActivity({
             user: res.user,
@@ -175,6 +177,7 @@ router.post('/activity', async(req, res) => {
         });
     } else {
         userActivity.activity = activity;
+        userActivity.updatedAt = new Date();
     }
     try {
         let savedActivity = await userActivity.save();

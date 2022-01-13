@@ -5,7 +5,8 @@ const User = require('../User');
 
 let schema = new Schema({
     user: {
-        type: User.schema,
+        type: Schema.Types.ObjectId,
+        ref: 'User',
         required: true,
     },
     activity: {

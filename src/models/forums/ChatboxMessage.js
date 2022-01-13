@@ -1,11 +1,10 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const User = require('../../models/User');
-
 let schema = new Schema({
     author: {
-        type: User.schema,
+        type: Schema.Types.ObjectId,
+        ref: 'User',
         required: true,
     },
     message: {

@@ -1,17 +1,22 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const Thread = require('./Thread');
-const User = require('./../User');
+const Thank = require('./Thank');
 
 let schema = new Schema({
     thread: {
-        type: Thread.schema,
+        type: Schema.Types.ObjectId,
+        ref: 'Thread',
         required: true,
     },
     author: {
-        type: User.schema,
+        type: Schema.Types.ObjectId,
+        ref: 'User',
         required: true,
+    },
+    subforum: {
+        type: Schema.Types.ObjectId,
+        required: true
     },
     content: {
         type: String,
@@ -20,13 +25,21 @@ let schema = new Schema({
     edited: {
         type: Date,
         required: false,
-    },
-    thanks: {
-        type: [User.schema],
-        required: false,
-        default: [],
     }
 }, { timestamps: true });
+
+schema.methods.getThanks = async function() {
+    return await Thank.find({ post: this._id })
+        .populate({
+            path: 'user',
+            model: 'User',
+            populate: [{
+                path: 'displayGroup'
+            }, {
+                path: 'usergroups'
+            }]
+        })
+};
 
 const Post = mongoose.model('Post', schema);
 
