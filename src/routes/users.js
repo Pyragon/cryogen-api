@@ -3,6 +3,8 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { generateSecret, verify } = require('2fa-util');
 
+const constants = require('../utils/constants');
+
 const User = require('../models/User');
 const Usergroup = require('../models/forums/Usergroup');
 const UserActivity = require('../models/forums/UserActivity');
@@ -15,14 +17,6 @@ router.post('/', async(req, res) => {
     //TODO - add request limiter to prevent brute force attacks
     let username = req.body.username;
     let password = req.body.password;
-    let sessionId = req.body.sessionId;
-    let rights;
-    try {
-        rights = parseInt(req.body.rights);
-    } catch (err) {
-        rights = 0;
-        console.error(err);
-    }
     if (!username || !password) {
         res.status(400).send({ message: 'Missing username or password.' });
         return;
@@ -47,7 +41,7 @@ router.post('/', async(req, res) => {
         res.status(400).send({ message: 'Username already exists.' });
         return;
     }
-    let group = req.body.displayGroup;
+    let group = constants['REGULAR_USERGROUP'];
     if (group) {
         group = await Usergroup.findOne({ _id: group });
         if (!group) {
@@ -56,20 +50,18 @@ router.post('/', async(req, res) => {
         }
     }
     let displayName = formatPlayerNameForDisplay(username);
-    let email = req.body.email || null;
     let hash = await bcrypt.hash(password, 10);
+    let sessionId = crypto.randomBytes(16).toString('base64');
     user = new User({
         username,
         displayName,
         hash,
-        email,
-        rights,
         displayGroup: group,
         sessionId
     });
     try {
-        await user.save();
-        res.status(201).json({ success: true });
+        let savedUser = await user.save();
+        res.status(201).json({ success: true, sessionId, user: savedUser });
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: 'Error creating user.' });
