@@ -119,6 +119,11 @@ router.post('/', async(req, res) => {
             return;
         }
 
+        if (subforum.isCategory) {
+            res.status(400).send({ message: 'Categories cannot have threads.' });
+            return;
+        }
+
         let thread = new Thread({
             subforum,
             title: req.body.title,
