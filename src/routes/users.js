@@ -6,6 +6,7 @@ const { generateSecret, verify } = require('2fa-util');
 const User = require('../models/User');
 const Usergroup = require('../models/forums/Usergroup');
 const UserActivity = require('../models/forums/UserActivity');
+const MiscData = require('../models/MiscData');
 const router = express.Router();
 
 const { formatNameForProtocol, formatPlayerNameForDisplay } = require('../utils/format');
@@ -184,6 +185,24 @@ router.post('/activity', async(req, res) => {
     try {
         let savedActivity = await userActivity.save();
         res.status(200).json(savedActivity);
+
+        let totalOnline = await UserActivity.countDocuments({
+            updatedAt: {
+                $gt: new Date(Date.now() - (5 * 60 * 1000))
+            }
+        });
+        let mostOnline = await MiscData.findOne({ name: 'mostOnline' });
+        if (!mostOnline) {
+            mostOnline = new MiscData({
+                name: 'mostOnline',
+                value: totalOnline
+            });
+            await mostOnline.save();
+        }
+        if (totalOnline > mostOnline.value) {
+            mostOnline.value = totalOnline;
+            await mostOnline.save();
+        }
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: 'Error saving user activity.' });

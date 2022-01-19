@@ -5,6 +5,7 @@ const User = require('../../models/User');
 const Thread = require('../../models/forums/Thread');
 const Post = require('../../models/forums/Post');
 const UserActivity = require('../../models/forums/UserActivity');
+const MiscData = require('../../models/MiscData');
 
 
 router.get('/', async(req, res) => {
@@ -14,14 +15,18 @@ router.get('/', async(req, res) => {
         let threadCount = await Thread.countDocuments();
         let postCount = await Post.countDocuments();
         let online = await UserActivity.countDocuments({ updatedAt: { $gt: Date.now() - (1000 * 60 * 5) } });
-        //TODO - get most online at a time
+        let mostOnline = await MiscData.findOne({ name: 'mostOnline' });
+        if (!mostOnline)
+            mostOnline = 0;
+        else
+            mostOnline = mostOnline.value;
 
         let stats = {
             registered: userCount,
             threads: threadCount,
             posts: postCount,
             online,
-            mostOnline: 0
+            mostOnline
         };
 
         res.status(200).send(stats);
