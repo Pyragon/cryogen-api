@@ -21,8 +21,7 @@ async function getSubforumChildren(parent = null, res, req) {
         }
         let subforums = await Subforum.find({ parent })
             .sort({ priority: 1 })
-            .fill('extraData')
-            .populate('permissions');
+            .fill('extraData');
         subforums = subforums.filter(subforum => {
             if (!subforum.permissions) return true;
             return subforum.permissions.checkCanSee(res.user);
@@ -49,7 +48,7 @@ router.get('/:id', async(req, res) => {
         res.status(400).send({ message: 'No id provided.' });
         return;
     }
-    let subforum = await Subforum.findById(id).fill('extraData').populate('permissions');
+    let subforum = await Subforum.findById(id).fill('extraData');
     res.status(200).send(subforum);
 });
 

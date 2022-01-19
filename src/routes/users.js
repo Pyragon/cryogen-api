@@ -127,9 +127,7 @@ router.post('/auth', async(req, res) => {
 
     username = formatNameForProtocol(username);
 
-    let user = await User.findOne({ username })
-        .populate('displayGroup')
-        .populate('usergroups');
+    let user = await User.findOne({ username });
     if (!user) {
         res.status(200).send({ success: false });
         return;
@@ -165,6 +163,8 @@ router.post('/activity', async(req, res) => {
         return;
     }
     let activity = req.body.activity;
+    let type = req.body.type;
+    let id = req.body.id;
     if (!activity) {
         res.status(400).send({ message: 'Missing activity.' });
         return;
@@ -173,7 +173,9 @@ router.post('/activity', async(req, res) => {
     if (!userActivity) {
         userActivity = new UserActivity({
             user: res.user,
-            activity: activity
+            activity: activity,
+            type,
+            id
         });
     } else {
         userActivity.activity = activity;

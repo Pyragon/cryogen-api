@@ -14,9 +14,7 @@ let middleware = async(req, res, next) => {
 
     try {
         //get session from database
-        let user = await User.findOne({ sessionId })
-            .populate('displayGroup')
-            .populate('usergroups');
+        let user = await User.findOne({ sessionId });
 
         if (!user) {
             res.loggedIn = false;

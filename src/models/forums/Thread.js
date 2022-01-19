@@ -1,19 +1,20 @@
-const mongoose = require('mongoose-fill');
+const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const Subforum = require('./Subforum');
-const User = require('../User');
+const Post = require('./Post');
 
 let schema = new Schema({
     subforum: {
         type: Schema.Types.ObjectId,
         ref: 'Subforum',
-        required: true
+        required: true,
+        autopopulate: true,
     },
     author: {
         type: Schema.Types.ObjectId,
         ref: 'User',
-        requried: true,
+        required: true,
+        autopopulate: true,
     },
     title: {
         type: String,
@@ -43,17 +44,8 @@ let schema = new Schema({
 
 schema.fill('lastPost', async function(callback) {
     try {
-        let Post = require('./Post');
-        let post = await Post.findOne({ 'thread': this._id })
-            .sort({ createdAt: -1 }).populate({
-                path: 'author',
-                model: 'User',
-                populate: [{
-                    path: 'displayGroup'
-                }, {
-                    path: 'usergroups'
-                }]
-            })
+        let post = await Post.findOne({ thread: this._id })
+            .sort({ createdAt: -1 });
         callback(null, post);
     } catch (err) {
         console.error(err);
@@ -61,19 +53,20 @@ schema.fill('lastPost', async function(callback) {
     }
 });
 
+schema.fill('pageTotal', async function(callback) {
+    try {
+        let totalPosts = await Post.countDocuments({ thread: this._id });
+        callback(null, Math.ceil(totalPosts / 10));
+    } catch (err) {
+        console.error(err);
+        callback(null, 1);
+    }
+});
+
 schema.fill('firstPost', async function(callback) {
     try {
-        let Post = require('./Post');
-        let post = await Post.findOne({ 'thread': this._id })
-            .sort({ createdAt: 1 }).populate({
-                path: 'author',
-                model: 'User',
-                populate: [{
-                    path: 'displayGroup'
-                }, {
-                    path: 'usergroups'
-                }]
-            })
+        let post = await Post.findOne({ thread: this._id })
+            .sort({ createdAt: 1 });
         callback(null, post);
     } catch (err) {
         console.error(err);
@@ -83,8 +76,7 @@ schema.fill('firstPost', async function(callback) {
 
 schema.fill('postCount', async function(callback) {
     try {
-        let Post = require('./Post');
-        let count = await Post.countDocuments({ 'thread': this._id });
+        let count = await Post.countDocuments({ thread: this._id });
         callback(null, count - 1);
     } catch (err) {
         console.error(err);
@@ -92,6 +84,7 @@ schema.fill('postCount', async function(callback) {
     }
 });
 
+schema.plugin(require('mongoose-autopopulate'));
 
 const Thread = mongoose.model('Thread', schema);
 

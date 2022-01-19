@@ -5,13 +5,23 @@ let schema = new Schema({
     post: {
         type: Schema.Types.ObjectId,
         ref: 'Post',
-        required: true
+        required: true,
+        autopopulate: true,
     },
     user: {
         type: Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: true,
+        autopopulate: true,
+    },
+    author: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        autopopulate: true,
     }
 });
+
+schema.plugin(require('mongoose-autopopulate'));
 
 module.exports = mongoose.model('Thank', schema);

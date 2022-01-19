@@ -23,14 +23,7 @@ router.post('/', async(req, res) => {
     }
 
     try {
-        let thread = await Thread.findOne({ _id: threadId })
-            .populate({
-                path: 'subforum',
-                populate: {
-                    path: 'permissions',
-                    model: 'Permissions'
-                }
-            });
+        let thread = await Thread.findOne({ _id: threadId });
         if (!thread) {
             res.status(404).send({ message: 'Invalid thread id.' });
             return;
@@ -47,9 +40,19 @@ router.post('/', async(req, res) => {
             content,
             subforum: thread.subforum
         });
-
         let savedPost = await post.save();
-        res.status(201).json({ post: savedPost });
+
+        let results = {
+            post: savedPost,
+            postCount: await user.getPostCount(),
+            thanksReceived: await user.getThanksReceived(),
+            thanksGiven: await user.getThanksGiven(),
+            thanks: await savedPost.getThanks()
+        };
+        //return page the new post is on, send notification asking if they want to go to the page
+        //after they've posted
+
+        res.status(201).json(results);
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: 'Error creating post.' });
@@ -107,7 +110,8 @@ router.post('/:id/thanks', async(req, res) => {
         }
         let thanksSchema = new Thank({
             post,
-            user
+            user,
+            author: post.author
         });
         await thanksSchema.save();
         res.status(201).json({ thanks: await post.getThanks() });
@@ -134,17 +138,7 @@ router.post('/:id/edit', async(req, res) => {
 
     try {
 
-        let post = await Post.findOne({ _id: postId })
-            .populate({
-                path: 'thread',
-                populate: {
-                    path: 'subforum',
-                    populate: {
-                        path: 'permissions',
-                        model: 'Permissions'
-                    }
-                }
-            });
+        let post = await Post.findOne({ _id: postId });
         if (!post) {
             res.status(404).send({ message: 'Invalid post id.' });
             return;
@@ -165,65 +159,67 @@ router.post('/:id/edit', async(req, res) => {
 
 });
 
-router.get('/children/:id', async(req, res) => {
+router.get('/children/:id/:page', async(req, res) => {
     let parentId = req.params.id;
+    let page = req.params.page || 1;
     if (!parentId) {
         res.status(400).send({ message: 'No id provided.' });
         return;
     }
     try {
-        let thread = await Thread.findOne({ _id: parentId })
-            .populate({
-                path: 'subforum',
-                populate: {
-                    path: 'permissions',
-                    model: 'Permissions'
-                }
-            });
+        let thread = await Thread.findOne({ _id: parentId });
 
         if (!thread || !thread.subforum.permissions.checkCanSee(res.user, thread)) {
             res.status(404).send({ message: 'Invalid thread id.' });
             return;
         }
 
-        let posts = await Post.find({ 'thread': thread._id })
-            .sort({ priority: -1 })
+        let totalPosts = await Post.countDocuments({ thread: thread._id });
+        if ((page - 1) * 10 >= totalPosts) {
+            res.status(404).send({ message: 'Invalid page.' });
+            return;
+        }
+
+        let posts = await Post.find({ thread: thread._id })
+            .skip((page - 1) * 10)
             .limit(10)
-            .populate({
-                path: 'thread',
-                populate: {
-                    path: 'subforum',
-                    model: 'Subforum',
-                    populate: {
-                        path: 'permissions',
-                        model: 'Permissions',
-                    }
-                }
-            })
-            .populate({
-                path: 'author',
-                model: 'User',
-                populate: [{
-                    path: 'displayGroup'
-                }, {
-                    path: 'usergroups'
-                }]
-            })
+            .sort({ priority: -1 });
+        let counts = [],
+            received = [],
+            given = [];
         posts = await Promise.all(posts.map(async(post) => {
             let user = await User.findOne({ _id: post.author._id });
+            let postCount = counts[user.username] || await user.getPostCount();
+            let thanksReceived = received[user.username] || await user.getThanksReceived();
+            let thanksGiven = given[user.username] || await user.getThanksGiven();
+            counts[user.username] = postCount;
+            received[user.username] = thanksReceived;
+            given[user.username] = thanksGiven;
             let results = {
                 post,
-                postCount: await user.getPostCount(),
-                thanksReceived: await user.getThanksReceived(),
-                thanksGiven: await user.getThanksGiven(),
+                postCount,
+                thanksReceived,
+                thanksGiven,
                 thanks: await post.getThanks()
             };
             return results;
         }));
+        posts = posts.sort((a, b) => a.post.createdAt - b.post.createdAt);
         res.status(200).send(posts);
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: 'Error getting posts.' });
+    }
+});
+
+router.get('/:id', async(req, res) => {
+    let id = req.params.id;
+    try {
+        let post = await Post.findOne({ _id: id });
+        res.status(200).json(post);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error getting post.' });
     }
 });
 

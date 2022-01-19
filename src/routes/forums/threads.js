@@ -4,81 +4,59 @@ const Thread = require('../../models/forums/Thread');
 const Post = require('../../models/forums/Post');
 const Subforum = require('../../models/forums/Subforum');
 const User = require('../../models/User');
+const UserActivity = require('../../models/forums/UserActivity');
 
 router.get('/:id', async(req, res) => {
     let id = req.params.id;
     if (id == 'news') {
-        let threads = await Thread.find({ "subforum._id": ['61d54c83ecf018f2f6af60cb', '61d54c96ecf018f2f6af60ce'], archived: false })
+        let threads = await Thread.find({ "subforum": ['61dfccd67065e8ce789105d9'], archived: false })
             .sort({ createdAt: -1 })
             .limit(5)
-            .fill('firstPost')
-            .populate('subforum')
-            .populate({
-                path: 'author',
-                model: 'User',
-                populate: [{
-                    path: 'displayGroup'
-                }, {
-                    path: 'usergroups'
-                }]
-            })
-
+            .fill('firstPost');
         res.status(200).send(threads);
         return;
     } else if (id == 'latest') {
         let threads = await Thread.find({ archived: false })
-            .sort({ createdAt: 1 })
-            .populate('subforum')
-            // .populate({
-            //     path: 'subforum',
-            //     populate: {
-            //         path: 'permissions',
-            //         model: 'Permissions'
-            //     }
-            // })
-            .populate({
-                path: 'author',
-                model: 'User',
-                populate: [{
-                    path: 'displayGroup'
-                }, {
-                    path: 'usergroups'
-                }]
-            })
+            .sort({ createdAt: -1 })
             .limit(10);
         //TODO - has permissions to view (only show threads with 'all' permission)
         res.status(200).send(threads);
         return;
     }
     try {
-        let thread = await Thread.findById(id)
+        let thread = await Thread.find({ _id: id })
             .fill('firstPost')
-            .populate('subforum')
-            .populate({
-                path: 'author',
-                model: 'User',
-                populate: [{
-                    path: 'displayGroup'
-                }, {
-                    path: 'usergroups'
-                }]
-            })
-            .populate({
-                path: 'subforum',
-                populate: {
-                    path: 'permissions',
-                    model: 'Permissions'
-                }
-            });
-        res.status(200).json(thread);
+            .fill('pageTotal')
+            .fill('lastPost')
+            .fill('postCount');
+        //TODO - has permissions to view (only show threads with 'all' permission)
+        res.status(200).json(thread[0]);
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: 'Error getting thread.' });
     }
 });
 
+router.get('/:id/users', async(req, res) => {
+    let id = req.params.id;
+    try {
+        let users = await UserActivity.find({
+            type: 'thread',
+            id: id,
+            updatedAt: {
+                $gte: new Date(Date.now() - (5 * 60 * 1000))
+            }
+        });
+        res.status(200).json(users);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: 'Error getting users.' });
+    }
+});
+
 router.get('/children/:id', async(req, res) => {
     let subforumId = req.params.id;
+
     if (!subforumId) {
         res.status(400).send({ message: 'No id provided.' });
         return;
@@ -92,16 +70,6 @@ router.get('/children/:id', async(req, res) => {
         let threads = await Thread.find({ "subforum": subforumId, archived: false })
             .sort({ createdAt: -1 })
             .limit(10)
-            .populate('subforum')
-            .populate({
-                path: 'author',
-                model: 'User',
-                populate: [{
-                    path: 'displayGroup'
-                }, {
-                    path: 'usergroups'
-                }]
-            })
             .fill('postCount')
             .fill('firstPost')
             .fill('lastPost');
@@ -117,17 +85,7 @@ router.get('/:threadId/:postId', async(req, res) => {
     let postId = req.params.postId;
     try {
         let thread = await Thread.findById(threadId)
-            .fill('lastPost')
-            .populate('subforum')
-            .populate({
-                path: 'author',
-                model: 'User',
-                populate: [{
-                    path: 'displayGroup'
-                }, {
-                    path: 'usergroups'
-                }]
-            });
+            .fill('lastPost');
         let post = thread.posts.id(postId);
         res.status(200).json(post);
     } catch (err) {
@@ -144,7 +102,7 @@ router.post('/', async(req, res) => {
 
     try {
 
-        let subforum = await Subforum.findById(req.body.subforum).populate('permissions');
+        let subforum = await Subforum.findById(req.body.subforum);
         if (!subforum) {
             res.status(400).send({ message: 'Invalid forum id.' });
             return;

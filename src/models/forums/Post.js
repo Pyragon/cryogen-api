@@ -8,15 +8,19 @@ let schema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Thread',
         required: true,
+        autopopulate: true,
     },
     author: {
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true,
+        autopopulate: true,
     },
     subforum: {
         type: Schema.Types.ObjectId,
-        required: true
+        ref: 'Subforum',
+        required: true,
+        autopopulate: true,
     },
     content: {
         type: String,
@@ -28,17 +32,10 @@ let schema = new Schema({
     }
 }, { timestamps: true });
 
+schema.plugin(require('mongoose-autopopulate'));
+
 schema.methods.getThanks = async function() {
-    return await Thank.find({ post: this._id })
-        .populate({
-            path: 'user',
-            model: 'User',
-            populate: [{
-                path: 'displayGroup'
-            }, {
-                path: 'usergroups'
-            }]
-        })
+    return await Thank.find({ post: this._id });
 };
 
 const Post = mongoose.model('Post', schema);

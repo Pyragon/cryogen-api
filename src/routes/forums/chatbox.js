@@ -12,14 +12,6 @@ router.get('/', async(req, res) => {
                 createdAt: {
                     $gte: new Date(Date.now() - (30 * 60 * 1000))
                 }
-            }).populate({
-                path: 'author',
-                model: 'User',
-                populate: [{
-                    path: 'displayGroup'
-                }, {
-                    path: 'usergroups'
-                }]
             })
             .sort({ createdAt: 1 });
         res.status(200).send({ messages: messages });

@@ -1,7 +1,8 @@
-const mongoose = require('mongoose-fill');
+const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const Permissions = require('./Permissions');
+let Post = require('./Post');
+let Thread = require('./Thread');
 
 let schema = new Schema({
     name: {
@@ -17,6 +18,7 @@ let schema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Subforum',
         required: false,
+        autopopulate: true,
     },
     isCategory: {
         type: Boolean,
@@ -26,6 +28,7 @@ let schema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'Permissions',
         required: false,
+        autopopulate: true,
     },
     priority: {
         type: Number,
@@ -42,24 +45,14 @@ let schema = new Schema({
     }
 });
 
+schema.plugin(require('mongoose-autopopulate'));
+
 schema.fill('extraData', async function(callback) {
     try {
-        let Post = require('./Post');
-        let Thread = require('./Thread');
-        let post = await Post.findOne({ 'subforum': this._id })
-            .sort({ createdAt: -1 })
-            .populate({
-                path: 'author',
-                model: 'User',
-                populate: [{
-                    path: 'displayGroup'
-                }, {
-                    path: 'usergroups'
-                }]
-            })
-            .populate('thread');
-        let totalThreads = await Thread.countDocuments({ 'subforum': this._id });
-        let totalPosts = await Post.countDocuments({ 'subforum': this._id });
+        let post = await Post.findOne({ subforum: this._id })
+            .sort({ createdAt: -1 });
+        let totalThreads = await Thread.countDocuments({ subforum: this._id });
+        let totalPosts = await Post.countDocuments({ subforum: this._id });
         let data = {
             lastPost: post,
             totalThreads,

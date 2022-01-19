@@ -3,6 +3,7 @@ const Post = require('./forums/Post');
 const Schema = mongoose.Schema;
 
 const Usergroup = require('./forums/Usergroup');
+const Thank = require('./forums/Thank');
 
 const userSchema = new Schema({
     username: {
@@ -45,14 +46,16 @@ const userSchema = new Schema({
     displayGroup: {
         type: Schema.Types.ObjectId,
         ref: 'Usergroup',
-        required: false
+        required: false,
+        autopopulate: true,
     },
     usergroups: {
         type: [{
             type: Schema.Types.ObjectId,
             ref: 'Usergroup',
         }],
-        required: false
+        required: false,
+        autopopulate: true,
     },
     recoveryQuestions: {
         type: Array,
@@ -75,16 +78,18 @@ const userSchema = new Schema({
     }
 });
 
+userSchema.plugin(require('mongoose-autopopulate'));
+
 userSchema.methods.getPostCount = async function() {
     return await Post.countDocuments({ author: this._id });
 }
 
 userSchema.methods.getThanksReceived = async function() {
-    return 1;
+    return await Thank.countDocuments({ user: this._id });
 };
 
 userSchema.methods.getThanksGiven = async function() {
-    return 1;
+    return await Thank.countDocuments({ author: this._id });
 };
 
 const User = mongoose.model('User', userSchema);

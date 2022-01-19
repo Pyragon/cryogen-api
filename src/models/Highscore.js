@@ -6,6 +6,7 @@ const schema = new Schema({
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true,
+        autopopulate: true,
     },
     totalLevel: {
         type: Number,
@@ -28,6 +29,8 @@ const schema = new Schema({
         required: true,
     }
 });
+
+schema.plugin(require('mongoose-autopopulate'));
 
 const Highscore = mongoose.model('Highscore', schema);
 
