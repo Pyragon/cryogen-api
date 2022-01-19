@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const censor = require('../../utils/censor');
+const constants = require('../../utils/constants');
 const { formatMessage } = require('../../utils/format');
 
 const ChatboxMessage = require('../../models/forums/ChatboxMessage');
@@ -24,10 +25,19 @@ router.get('/', async(req, res) => {
 router.post('/', async(req, res) => {
     if (!res.loggedIn) {
         res.status(401).send({ message: 'You must be logged in to post.' });
-        console.log('not logged in');
         return;
     }
-    //TODO - permissions
+    let user = res.user;
+    //TODO - show error message in react
+    if (user.displayGroup._id.equals(constants['BANNED_USERGROUP'])) {
+        res.status(403).send({ message: 'You are banned from posting.' });
+        return;
+    }
+    let chatboxMutedGroup = user.usergroups.find(group => group._id.equals(constants['CHATBOX_MUTED_USERGROUP']));
+    if (chatboxMutedGroup) {
+        res.status(403).send({ message: 'You are muted from the chatbox.' });
+        return;
+    }
     //TODO - switch to use socketio
     let message = formatMessage(req.body.message);
     message = censor(message);

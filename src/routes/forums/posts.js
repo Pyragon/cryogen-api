@@ -29,7 +29,7 @@ router.post('/', async(req, res) => {
             return;
         }
 
-        if (!thread.subforum.permissions.checkCanReply(user)) {
+        if (!thread.subforum.permissions.checkCanSee(user, thread) || !thread.subforum.permissions.checkCanReply(user)) {
             res.status(403).send({ message: 'You do not have permission to post in this subforum.' });
             return;
         }
@@ -74,6 +74,10 @@ router.post('/:id/thanks/remove', async(req, res) => {
             return;
         }
         let user = res.user;
+        if (!post.thread.subforum.permissions.checkCanSee(user, post.thread)) {
+            res.status(403).send({ message: 'You do not have permission to remove thanks in this subforum.' });
+            return;
+        }
         let thank = await Thank.findOne({ post, user });
         if (!thank) {
             res.status(404).send({ message: 'You have not thanked this post.' });
@@ -99,8 +103,11 @@ router.post('/:id/thanks', async(req, res) => {
 
         let post = await Post.findOne({ _id: postId });
         if (!post) {
-            console.log('invalid post id');
             res.status(404).send({ message: 'Invalid post id.' });
+            return;
+        }
+        if (!post.thread.subforum.permissions.checkCanSee(user, post.thread)) {
+            res.status(403).send({ message: 'You do not have permission to add thanks in this subforum.' });
             return;
         }
         let thanks = await post.getThanks();
@@ -209,17 +216,6 @@ router.get('/children/:id/:page', async(req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: 'Error getting posts.' });
-    }
-});
-
-router.get('/:id', async(req, res) => {
-    let id = req.params.id;
-    try {
-        let post = await Post.findOne({ _id: id });
-        res.status(200).json(post);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Error getting post.' });
     }
 });
 

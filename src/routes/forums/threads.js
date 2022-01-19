@@ -19,18 +19,25 @@ router.get('/:id', async(req, res) => {
         let threads = await Thread.find({ archived: false })
             .sort({ createdAt: -1 })
             .limit(10);
-        //TODO - has permissions to view (only show threads with 'all' permission)
+        threads = threads.filter(thread => thread.subforum.permissions.checkCanSee(res.user, thread));
         res.status(200).send(threads);
         return;
     }
     try {
-        let thread = await Thread.find({ _id: id })
+        let thread = await Thread.findById(id)
             .fill('firstPost')
             .fill('pageTotal')
             .fill('lastPost')
             .fill('postCount');
-        //TODO - has permissions to view (only show threads with 'all' permission)
-        res.status(200).json(thread[0]);
+        if (!thread) {
+            res.status(404).send({ message: 'Thread not found.' });
+            return;
+        }
+        if (!thread.subforum.permissions.checkCanSee(res.user, thread)) {
+            res.status(403).send({ message: 'You do not have permission to view this thread.' });
+            return;
+        }
+        res.status(200).json(thread);
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: 'Error getting thread.' });
@@ -40,6 +47,15 @@ router.get('/:id', async(req, res) => {
 router.get('/:id/users', async(req, res) => {
     let id = req.params.id;
     try {
+        let thread = await Thread.findById(id);
+        if (!thread) {
+            res.status(404).send({ message: 'Thread not found.' });
+            return;
+        }
+        if (!thread.subforum.permissions.checkCanSee(res.user, thread)) {
+            res.status(403).send({ message: 'You do not have permission to view this thread.' });
+            return;
+        }
         let users = await UserActivity.find({
             type: 'thread',
             id: id,
@@ -55,19 +71,23 @@ router.get('/:id/users', async(req, res) => {
 });
 
 router.get('/children/:id', async(req, res) => {
-    let subforumId = req.params.id;
+    let id = req.params.id;
 
-    if (!subforumId) {
+    if (!id) {
         res.status(400).send({ message: 'No id provided.' });
         return;
     }
     try {
-        let subforum = await Subforum.findById(subforumId);
+        let subforum = await Subforum.findById(id);
         if (!subforum) {
             res.status(404).send({ message: 'Subforum not found.' });
             return;
         }
-        let threads = await Thread.find({ "subforum": subforumId, archived: false })
+        if (!subforum.permissions.checkCanSee(res.user)) {
+            res.status(403).send({ message: 'You do not have permission to view this subforum.' });
+            return;
+        }
+        let threads = await Thread.find({ subforum: id, archived: false })
             .sort({ createdAt: -1 })
             .limit(10)
             .fill('postCount')
@@ -77,20 +97,6 @@ router.get('/children/:id', async(req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: 'Error getting subforum.' });
-    }
-});
-
-router.get('/:threadId/:postId', async(req, res) => {
-    let threadId = req.params.threadId;
-    let postId = req.params.postId;
-    try {
-        let thread = await Thread.findById(threadId)
-            .fill('lastPost');
-        let post = thread.posts.id(postId);
-        res.status(200).json(post);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send({ message: 'Error getting post.' });
     }
 });
 
@@ -108,7 +114,7 @@ router.post('/', async(req, res) => {
             return;
         }
 
-        if (!subforum.permissions.checkCanCreateThreads(res.user)) {
+        if (!subforum.permissions.checkCanSee(res.user) || !subforum.permissions.checkCanCreateThreads(res.user)) {
             res.status(403).send({ message: 'You do not have permission to create threads in this subforum.' });
             return;
         }

@@ -8,22 +8,10 @@ router.get('/mini', async(req, res) => {
 
     try {
         //get the top 10 highscores based on level, xp, xpstamp
-        let highscores = await Highscore.find({}).sort({ totalLevel: -1, totalXP: -1, totalXPStamp: -1 }).limit(10);
-        highscores = await Promise.all(highscores.map(async(highscores) => {
-            let newHighscore = JSON.parse(JSON.stringify(highscores));
-            let user = await User.find({ username: highscores.username });
-            if (!user || !user.username)
-                user = {
-                    username: 'cody',
-                    rights: 0
-                };
-            newHighscore.user = {
-                username: user.username,
-                rights: user.rights,
-            };
-            return newHighscore;
-        }));
-        res.status(200).send({ highscores });
+        let highscores = await Highscore.find({})
+            .sort({ totalLevel: -1, totalXP: -1, totalXPStamp: -1 })
+            .limit(10);
+        res.status(200).send(highscores);
     } catch (err) {
         console.error(err);
         res.status(500).send({ message: 'Error getting highscores.' });

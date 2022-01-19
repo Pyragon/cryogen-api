@@ -40,8 +40,8 @@ schema.methods.checkCanSee = function(user, thread) {
     //see if canSee includes any values from user.userGroup
     for (let i = 0; i < user.userGroups.length; i++)
         if (this.canSee.includes(user.userGroups[i])) return true;
-    if (this.canSee.includes('-3') && user !== null && thread.author._id === user._id) return true;
-    if (this.canSee.includes('-4') && user !== null && thread.author.displayGroup.rights > 0) return true;
+    if (this.canSee.includes('-3') && user !== null && thread && thread.author._id === user._id) return true;
+    if (this.canSee.includes('-4') && user !== null && thread && thread.author.displayGroup.rights > 0) return true;
     return false;
 };
 

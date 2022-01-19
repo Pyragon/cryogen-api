@@ -49,6 +49,10 @@ router.get('/:id', async(req, res) => {
         return;
     }
     let subforum = await Subforum.findById(id).fill('extraData');
+    if (subforum.permissions && !subforum.permissions.checkCanSee(res.user)) {
+        res.status(403).send({ message: 'You do not have permission to view this subforum.' });
+        return;
+    }
     res.status(200).send(subforum);
 });
 
@@ -59,7 +63,14 @@ router.get('/', async(req, res) => {
 router.post('/', async(req, res) => {
 
     try {
-
+        if (!res.loggedIn) {
+            res.status(403).send({ message: 'You do not have permission to do this.' });
+            return;
+        }
+        if (res.user.displayGroup.rights < 2) {
+            res.status(403).send({ message: 'You do not have permission to do this.' });
+            return;
+        }
         let parent = null;
         if (req.body.parentId) {
             parent = await Subforum.findById(req.body.parentId);
