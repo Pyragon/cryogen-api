@@ -21,7 +21,8 @@ async function getSubforumChildren(parent = null, res, req) {
         }
         let subforums = await Subforum.find({ parent })
             .sort({ priority: 1 })
-            .fill('extraData');
+            .fill('extraData')
+            .fill('subforums');
         subforums = subforums.filter(subforum => {
             if (!subforum.permissions) return true;
             return subforum.permissions.checkCanSee(res.user);

@@ -47,6 +47,16 @@ let schema = new Schema({
 
 schema.plugin(require('mongoose-autopopulate'));
 
+schema.fill('subforums', async function(callback) {
+    try {
+        let subforums = await Subforum.find({ parent: this._id });
+        callback(null, subforums);
+    } catch (err) {
+        console.error(err);
+        callback(null, []);
+    }
+});
+
 schema.fill('extraData', async function(callback) {
     try {
         let post = await Post.findOne({ subforum: this._id })
