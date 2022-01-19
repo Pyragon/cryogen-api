@@ -18,7 +18,7 @@ router.get('/:id', async(req, res) => {
     } else if (id == 'latest') {
         let threads = await Thread.find({ archived: false })
             .sort({ createdAt: -1 })
-            .limit(10);
+            .limit(4);
         threads = threads.filter(thread => thread.subforum.permissions.checkCanSee(res.user, thread));
         res.status(200).send(threads);
         return;
@@ -124,13 +124,24 @@ router.post('/', async(req, res) => {
             return;
         }
 
+        let title = req.body.title;
+        let content = req.body.content;
+
+        if (title.length < 5 || title.length > 50) {
+            res.status(400).send({ message: 'Title must be between 5 and 50 characters.' });
+            return;
+        }
+
+        if (content.length < 4 || content.length > 1000) {
+            res.status(400).send({ message: 'Content must be between 4 and 1000 characters.' });
+            return;
+        }
+
         let thread = new Thread({
             subforum,
-            title: req.body.title,
+            title,
             author: res.user
         });
-
-        let content = req.body.content;
 
         let savedThread = await thread.save();
 
