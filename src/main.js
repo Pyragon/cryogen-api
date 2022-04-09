@@ -31,7 +31,7 @@ walker.on('file', function(root, stat, next) {
     if (stat.name.endsWith('.js')) {
         try {
             const route = require('./' + path.join(root, stat.name).replace('src\\', ''));
-            let routePath = root.replace(/\.\/src\/routes/, '').replace('\\', '/') + '/' + stat.name.replace('.js', '');
+            let routePath = root.replace(/\.\/src\/routes/, '').replaceAll('\\', '/') + '/' + stat.name.replace('.js', '');
             app.use(routePath, route);
         } catch (err) {
             console.error(err);
