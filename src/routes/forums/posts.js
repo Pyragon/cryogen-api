@@ -128,6 +128,71 @@ router.post('/:id/thanks', async(req, res) => {
     }
 });
 
+router.post('/:id/delete', async(req, res) => {
+    if (!res.loggedIn) {
+        res.status(401).send({ message: 'You must be logged in to delete a post.' });
+        return;
+    }
+    let page = req.body.page;
+    let postId = req.params.id;
+    try {
+        let post = await Post.findById(postId);
+        if (!post) {
+            res.status(404).send({ message: 'Invalid post id.' });
+            return;
+        }
+        let user = res.user;
+        if (!post.thread.subforum.permissions.checkCanModerate(user)) {
+            res.status(403).send({ message: 'You do not have permission to delete posts in this subforum.' });
+            return;
+        }
+        let firstPost = await post.find({ thread: post.thread._id }).sort({ createdAt: 1 }).limit(1);
+        if (firstPost._id.equals(post._id)) {
+            res.status(403).send({ message: 'You cannot delete the first post of a thread. Delete the thread above instead.' });
+            return;
+        }
+        await post.remove();
+
+        let totalPosts = await Post.countDocuments({ thread: post.thread._id });
+        if ((page - 1) * 10 >= totalPosts) {
+            res.status(404).send({ message: 'Invalid page.' });
+            return;
+        }
+
+        let posts = await Post.find({ thread: post.thread._id })
+            .skip((page - 1) * 10)
+            .limit(10)
+            .sort({ createdAt: -1 });
+        let counts = [],
+            received = [],
+            given = [];
+        let index = (page - 1) * 10;
+        posts = await Promise.all(posts.map(async(post) => {
+            let user = await User.findOne({ _id: post.author._id });
+            let postCount = counts[user.username] || await user.getPostCount();
+            let thanksReceived = received[user.username] || await user.getThanksReceived();
+            let thanksGiven = given[user.username] || await user.getThanksGiven();
+            counts[user.username] = postCount;
+            received[user.username] = thanksReceived;
+            given[user.username] = thanksGiven;
+            let results = {
+                index: index++,
+                post,
+                postCount,
+                thanksReceived,
+                thanksGiven,
+                thanks: await post.getThanks()
+            };
+            return results;
+        }));
+        posts = posts.sort((a, b) => a.post.createdAt - b.post.createdAt);
+        res.status(200).send({ posts });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: 'Error deleting post.' });
+    }
+});
+
 router.post('/:id/edit', async(req, res) => {
 
     if (!res.loggedIn) {
@@ -190,10 +255,11 @@ router.get('/children/:id/:page', async(req, res) => {
         let posts = await Post.find({ thread: thread._id })
             .skip((page - 1) * 10)
             .limit(10)
-            .sort({ priority: -1 });
+            .sort({ createdAt: -1 });
         let counts = [],
             received = [],
             given = [];
+        let index = (page - 1) * 10;
         posts = await Promise.all(posts.map(async(post) => {
             let user = await User.findOne({ _id: post.author._id });
             let postCount = counts[user.username] || await user.getPostCount();
@@ -203,6 +269,7 @@ router.get('/children/:id/:page', async(req, res) => {
             received[user.username] = thanksReceived;
             given[user.username] = thanksGiven;
             let results = {
+                index: index++,
                 post,
                 postCount,
                 thanksReceived,
@@ -211,7 +278,6 @@ router.get('/children/:id/:page', async(req, res) => {
             };
             return results;
         }));
-        posts = posts.sort((a, b) => a.post.createdAt - b.post.createdAt);
         res.status(200).send(posts);
     } catch (err) {
         console.error(err);

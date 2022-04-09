@@ -50,7 +50,7 @@ schema.methods.checkCanCreateThreads = function(user) {
     let data = this.canCreateThreads;
     if (data.includes('-1') || data.includes('-2')) return true;
     for (let id of data)
-        if (id === user.displayGroup._id) return true;
+        if (user.displayGroup._id.equals(id)) return true;
     if (user.userGroups)
         for (let i = 0; i < user.userGroups.length; i++)
             if (data.includes(user.userGroups[i])) return true;
@@ -62,13 +62,24 @@ schema.methods.checkCanReply = function(user, thread) {
     let data = this.canReply;
     if (data.includes('-1') || data.includes('-2')) return true;
     for (let id of data)
-        if (id === user.displayGroup._id) return true;
+        if (user.displayGroup._id.equals(id)) return true;
     if (user.userGroups)
         for (let i = 0; i < user.userGroups.length; i++)
             if (data.includes(user.userGroups[i])) return true;
     if (data.includes('-3') && thread.author._id === user._id) return true;
     return false;
 };
+
+schema.methods.checkCanModerate = function(user) {
+    if (!user) return false;
+    let data = this.canModerate;
+    for (let id of data)
+        if (user.displayGroup._id.equals(id)) return true;
+    if (user.userGroups)
+        for (let i = 0; i < user.usergroups.length; i++)
+            if (data.includes(user.usergroups[i])) return true;
+    return false;
+}
 
 const model = mongoose.model('Permissions', schema);
 

@@ -5,6 +5,7 @@ const Post = require('../../models/forums/Post');
 const Subforum = require('../../models/forums/Subforum');
 const User = require('../../models/User');
 const UserActivity = require('../../models/forums/UserActivity');
+const saveModLog = require('../../utils/mod-logs');
 
 router.get('/:id', async(req, res) => {
     let id = req.params.id;
@@ -166,6 +167,72 @@ router.post('/', async(req, res) => {
         res.status(500).send({ message: 'Error creating thread.' });
     }
 
+});
+
+router.post('/:id/pin', async(req, res) => {
+    let id = req.params.id;
+    try {
+        let thread = await Thread.findById(id);
+        if (!thread) {
+            res.status(404).send({ message: 'Thread not found.' });
+            return;
+        }
+        if (!thread.subforum.permissions.checkCanModerate(res.user, thread)) {
+            res.status(403).send({ message: 'You do not have permission to pin or unpin this thread.' });
+            return;
+        }
+        thread.pinned = !thread.pinned;
+        let savedThread = await thread.save();
+        saveModLog(res.user, savedThread._id, 'thread', (thread.pinned ? 'Pinned' : 'Unpinned') + ' thread');
+        res.status(200).send({ thread: savedThread });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: 'Error locking thread.' });
+    }
+});
+
+router.post('/:id/lock', async(req, res) => {
+    let id = req.params.id;
+    try {
+        let thread = await Thread.findById(id);
+        if (!thread) {
+            res.status(404).send({ message: 'Thread not found.' });
+            return;
+        }
+        if (!thread.subforum.permissions.checkCanModerate(res.user, thread)) {
+            res.status(403).send({ message: 'You do not have permission to lock or unlock this thread.' });
+            return;
+        }
+        thread.open = !thread.open;
+        let savedThread = await thread.save();
+        saveModLog(res.user, savedThread._id, 'thread', (thread.open ? 'Unlocked' : 'Locked') + ' thread');
+        res.status(200).send({ thread: savedThread });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: 'Error locking thread.' });
+    }
+});
+
+router.post('/:id/archive', async(req, res) => {
+    let id = req.params.id;
+    try {
+        let thread = await Thread.findById(id);
+        if (!thread) {
+            res.status(404).send({ message: 'Thread not found.' });
+            return;
+        }
+        if (!thread.subforum.permissions.checkCanModerate(res.user, thread)) {
+            res.status(403).send({ message: 'You do not have permission to delete or restore this thread.' });
+            return;
+        }
+        thread.archived = !thread.archived;
+        let savedThread = await thread.save();
+        res.status(200).send({ thread: savedThread });
+        saveModLog(res.user, savedThread._id, 'thread', thread.archived ? 'Archived' : 'Restored');
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: 'Error archiving thread.' });
+    }
 });
 
 module.exports = router;
