@@ -88,11 +88,18 @@ router.get('/children/:id', async(req, res) => {
             return;
         }
         let threads = await Thread.find({ subforum: id, archived: false })
-            .sort({ createdAt: -1 })
             .limit(10)
             .fill('postCount')
             .fill('firstPost')
             .fill('lastPost');
+        threads = threads.sort((a, b) => {
+            if (a.pinned && !b.pinned)
+                return -1;
+            else if (!a.pinned && b.pinned)
+                return 1;
+            else
+                return b.lastPost.createdAt - a.lastPost.createdAt;
+        });
         res.status(200).send(threads);
     } catch (err) {
         console.error(err);
