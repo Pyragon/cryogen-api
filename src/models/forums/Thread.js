@@ -25,6 +25,12 @@ let schema = new Schema({
         required: false,
         default: true
     },
+    poll: {
+        type: Schema.Types.ObjectId,
+        ref: 'Poll',
+        required: false,
+        autopopulate: true
+    },
     archived: {
         type: Boolean,
         required: false,

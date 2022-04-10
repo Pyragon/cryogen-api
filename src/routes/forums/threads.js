@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Thread = require('../../models/forums/Thread');
 const Post = require('../../models/forums/Post');
+const Poll = require('../../models/forums/Poll');
 const Subforum = require('../../models/forums/Subforum');
 const User = require('../../models/User');
 const UserActivity = require('../../models/forums/UserActivity');
@@ -134,6 +135,43 @@ router.post('/', async(req, res) => {
 
         let title = req.body.title;
         let content = req.body.content;
+        let question = req.body.question;
+        let options = req.body.pollOptions;
+
+        let poll;
+
+        if (question) {
+            let pollOptions = [];
+            if (question.length < 5 || question.length > 50) {
+                console.error('Question must be between 5 and 50 characters.');
+                return;
+            }
+            for (let i = 0; i < 6; i++) {
+                if (!options[i]) continue;
+                let option = options[i];
+                if (pollOptions.includes(option)) {
+                    console.error('You cannot have duplicate answers.');
+                    return;
+                }
+                if (option.length < 4 || option.length > 25) {
+                    console.error('Answers must be between 4 and 25 characters.');
+                    return;
+                }
+                pollOptions.push(option);
+            }
+            if (pollOptions.length < 2) {
+                console.error('You must have at least two answers.');
+                return;
+            }
+            let votes = [];
+            poll = new Poll({
+                question,
+                answers: pollOptions,
+                votes
+            });
+
+            poll = await poll.save();
+        }
 
         if (title.length < 5 || title.length > 50) {
             res.status(400).send({ message: 'Title must be between 5 and 50 characters.' });
@@ -148,10 +186,14 @@ router.post('/', async(req, res) => {
         let thread = new Thread({
             subforum,
             title,
-            author: res.user
+            author: res.user,
+            poll,
         });
 
         let savedThread = await thread.save();
+
+        poll.threadId = savedThread._id;
+        await poll.save();
 
         let post = new Post({
             thread: savedThread,
@@ -166,7 +208,74 @@ router.post('/', async(req, res) => {
         console.error(err);
         res.status(500).send({ message: 'Error creating thread.' });
     }
+});
 
+router.post('/polls/removeVote', async(req, res) => {
+    let id = req.body.poll;
+    try {
+        let poll = await Poll.findById(id);
+        if (!poll) {
+            res.status(404).send({ message: 'Poll not found.' });
+            return;
+        }
+        if (!poll.allowVoteChange) {
+            res.status(403).send({ message: 'Changing your vote is not allowed on this poll.' });
+            return;
+        }
+        for (let i = 0; i < poll.votes.length; i++) {
+            let vote = poll.votes[i];
+            if (vote.user._id.equals(res.user._id))
+                poll.votes.splice(i, 1);
+        }
+        let saved = await poll.save();
+        res.status(200).send({ poll: saved });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: 'Error removing vote.' });
+    }
+});
+
+router.post('/polls/vote', async(req, res) => {
+    let id = req.body.poll;
+    let index = parseInt(req.body.index);
+    try {
+        let poll = await Poll.findById(id);
+        if (!poll) {
+            res.status(404).send({ message: 'Poll not found.' });
+            return;
+        }
+        let thread = await Thread.findById(poll.threadId);
+        if (!thread) {
+            res.status(404).send({ message: 'Thread not found.' });
+            return;
+        }
+        if (!thread.subforum.permissions.checkCanSee(res.user, poll.thread)) {
+            res.status(403).send({ message: 'You do not have permission to vote in this poll.' });
+            return;
+        }
+
+        for (let i = 0; i < poll.votes.length; i++) {
+            let vote = poll.votes[i];
+            if (vote.user._id === res.user._id) {
+                if (poll.allowVoteChange) {
+                    res.status(403).send({ message: 'You have already voted and this poll does not allow you to change your vote.' });
+                    return;
+                }
+                poll.votes.splice(i, 1);
+            }
+        }
+
+        poll.votes.push({
+            user: res.user,
+            index
+        });
+
+        let saved = await poll.save();
+        res.status(200).send({ poll: saved });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: 'Error voting.', error: err });
+    }
 });
 
 router.post('/:id/pin', async(req, res) => {
