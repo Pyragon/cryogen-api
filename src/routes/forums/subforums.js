@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const ObjectId = require('mongoose').Types.ObjectId;
 
 const Subforum = require('../../models/forums/Subforum');
 const Permissions = require('../../models/forums/Permissions');
@@ -13,6 +14,11 @@ const DEFAULT_PERMISSIONS = null;
 async function getSubforumChildren(parent = null, res, req) {
     try {
         if (parent != null) {
+            if (!ObjectId.isValid(parent)) {
+                res.status(404).send({ message: 'Parent subforum not found.' });
+                console.log('ID from getChildren is not valid', id);
+                return;
+            }
             parent = await Subforum.findById(parent);
             if (!parent) {
                 res.status(404).send({ message: 'Parent subforum not found.' });
@@ -47,6 +53,11 @@ router.get('/:id', async(req, res) => {
     let id = req.params.id;
     if (!id) {
         res.status(400).send({ message: 'No id provided.' });
+        return;
+    }
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ message: 'Invalid id.' });
+        console.log('ID from GET is not valid', id);
         return;
     }
     let subforum = await Subforum.findById(id).fill('extraData');

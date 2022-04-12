@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+const Message = require('./Message');
+
 let schema = new Schema({
     author: {
         type: Schema.Types.ObjectId,
@@ -8,8 +10,8 @@ let schema = new Schema({
         required: true,
         autopopulate: true,
     },
-    recipient: {
-        type: Schema.Types.ObjectId,
+    recipients: {
+        type: [Schema.Types.ObjectId],
         ref: 'User',
         required: true,
         autopopulate: true,
@@ -18,23 +20,21 @@ let schema = new Schema({
         type: String,
         required: true,
     },
-    body: {
-        type: String,
+    notifyUsersWarning: {
+        type: [Schema.Types.ObjectId],
+        ref: 'User',
         required: true,
-    },
-    readAt: {
-        type: Date,
-        required: false,
-    },
-    archived: {
-        type: Boolean,
-        required: false,
-        default: false
+        autopopulate: true,
     }
 }, { timestamps: true });
 
 schema.plugin(require('mongoose-autopopulate'));
 
-const model = mongoose.model('InboxMessage', schema);
+schema.methods.getLastMessage = async function() {
+    return await Message.findOne({ chain: this._id })
+        .sort({ createdAt: -1 });
+};
+
+const model = mongoose.model('MessageChain', schema);
 
 module.exports = model;

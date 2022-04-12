@@ -78,7 +78,7 @@ router.post('/:id/thanks/remove', async(req, res) => {
             res.status(403).send({ message: 'You do not have permission to remove thanks in this subforum.' });
             return;
         }
-        let thank = await Thank.findOne({ post, user });
+        let thank = await Thank.findOne({ post: post._id, user });
         if (!thank) {
             res.status(404).send({ message: 'You have not thanked this post.' });
             return;
@@ -116,7 +116,7 @@ router.post('/:id/thanks', async(req, res) => {
             return;
         }
         let thanksSchema = new Thank({
-            post,
+            post: post._id,
             user,
             author: post.author
         });

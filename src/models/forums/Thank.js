@@ -4,9 +4,7 @@ const Schema = mongoose.Schema;
 let schema = new Schema({
     post: {
         type: Schema.Types.ObjectId,
-        ref: 'Post',
         required: true,
-        autopopulate: true,
     },
     user: {
         type: Schema.Types.ObjectId,
