@@ -7,7 +7,7 @@ let schema = new Schema({
     chain: {
         type: Schema.Types.ObjectId,
         ref: 'MessageChain',
-        required: true,
+        required: false,
         autopopulate: true,
     },
     author: {
@@ -19,12 +19,16 @@ let schema = new Schema({
     recipients: {
         type: [Schema.Types.ObjectId],
         ref: 'User',
-        required: true,
+        required: false,
         autopopulate: true,
+    },
+    subject: {
+        type: String,
+        required: false,
     },
     content: {
         type: String,
-        required: true,
+        required: false,
     }
 }, { timestamps: true });
 

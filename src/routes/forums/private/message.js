@@ -84,7 +84,7 @@ router.post('/chain', async(req, res) => {
         }
 
         if (!Array.isArray(recipients))
-            recipients = [recipients];
+            recipients = recipients.split(', ?');
 
         let failed = false;
 

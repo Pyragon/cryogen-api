@@ -18,7 +18,7 @@ router.get('/:page', async(req, res) => {
             .skip((page - 1) * 10)
             .limit(10);
 
-        let pageTotal = Math.ceil(MessageChain.countDocuments({ $or: [{ recipient: res.user }, { author: res.user }] }) / 10);
+        let pageTotal = Math.ceil(await MessageChain.countDocuments({ $or: [{ recipient: res.user }, { author: res.user }] }) / 10);
 
         res.status(200).json({ chains, pageTotal });
     } catch (err) {
