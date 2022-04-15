@@ -192,8 +192,10 @@ router.post('/', async(req, res) => {
 
         let savedThread = await thread.save();
 
-        poll.threadId = savedThread._id;
-        await poll.save();
+        if (poll) {
+            poll.threadId = savedThread._id;
+            await poll.save();
+        }
 
         let post = new Post({
             thread: savedThread,

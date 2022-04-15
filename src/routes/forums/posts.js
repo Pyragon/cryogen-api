@@ -1,10 +1,49 @@
 const express = require('express');
 const router = express.Router();
+const ObjectId = require('mongoose').Types.ObjectId;
+
+const BBCodeManager = require('../../utils/bbcode-manager');
 
 const Post = require('../../models/forums/Post');
 const Thread = require('../../models/forums/Thread');
 const Thank = require('../../models/forums/Thank');
 const User = require('../../models/User');
+
+router.get('/:id', async(req, res) => {
+    if (!res.loggedIn) {
+        res.status(401).send({ message: 'You must be logged in to view a post.' });
+        return;
+    }
+
+    let id = req.params.id;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ message: 'Invalid post id.' });
+        console.error('Invalid post id.');
+        return;
+    }
+
+    try {
+
+        let post = await Post.findById(id);
+        if (!post) {
+            res.status(404).send({ message: 'Post not found.' });
+            console.error('Post not found.');
+            return;
+        }
+
+        if (!post.thread.subforum.permissions.checkCanSee(res.user, post.thread)) {
+            res.status(404).send({ message: 'Post not found.' });
+            console.error('Does not have permission to view this post.');
+            return;
+        }
+
+        res.status(200).json({ post });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: 'Error viewing post.' });
+    }
+});
 
 router.post('/', async(req, res) => {
 
@@ -193,7 +232,7 @@ router.post('/:id/delete', async(req, res) => {
     }
 });
 
-router.post('/:id/edit', async(req, res) => {
+router.put('/:id', async(req, res) => {
 
     if (!res.loggedIn) {
         res.status(401).send({ message: 'You must be logged in to edit a post.' });
@@ -221,8 +260,15 @@ router.post('/:id/edit', async(req, res) => {
         }
         post.content = content;
         post.edited = new Date();
+
         await post.save();
-        res.status(200).json({ post });
+
+        let bbcodeManager = new BBCodeManager(post);
+        let results = {
+            ...post._doc,
+            formatted: await bbcodeManager.getFormattedPost(res.user),
+        }
+        res.status(200).json({ post: results });
 
     } catch (err) {
         console.error(err);
@@ -268,9 +314,13 @@ router.get('/children/:id/:page', async(req, res) => {
             counts[user.username] = postCount;
             received[user.username] = thanksReceived;
             given[user.username] = thanksGiven;
+            let bbcodeManager = new BBCodeManager(post);
             let results = {
                 index: index++,
-                post,
+                post: {
+                    ...post._doc,
+                    formatted: await bbcodeManager.getFormattedPost(res.user)
+                },
                 postCount,
                 thanksReceived,
                 thanksGiven,
