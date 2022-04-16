@@ -3,7 +3,10 @@ const Post = require('./forums/Post');
 const Schema = mongoose.Schema;
 
 const Usergroup = require('./forums/Usergroup');
+const Highscore = require('./Highscore');
 const Thank = require('./forums/Thank');
+const Thread = require('./forums/Thread');
+const Highscores = require('../utils/highscores');
 
 const userSchema = new Schema({
     username: {
@@ -82,6 +85,10 @@ userSchema.plugin(require('mongoose-autopopulate'));
 
 userSchema.methods.getPostCount = async function() {
     return await Post.countDocuments({ author: this._id });
+};
+
+userSchema.methods.getThreadsCreated = async function() {
+    return await Thread.countDocuments({ author: this._id });
 }
 
 userSchema.methods.getThanksReceived = async function() {
@@ -90,6 +97,17 @@ userSchema.methods.getThanksReceived = async function() {
 
 userSchema.methods.getThanksGiven = async function() {
     return await Thank.countDocuments({ author: this._id });
+};
+
+userSchema.methods.getTotalLevel = async function() {
+
+    const data = await Highscore.findOne({ user: this._id });
+    if (!data) return -1;
+
+    let highscores = new Highscores(data);
+
+    return highscores.getTotalLevel();
+
 };
 
 const User = mongoose.model('User', userSchema);

@@ -2,16 +2,22 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { generateSecret, verify } = require('2fa-util');
+const { filter } = require('../utils/utils');
 
 const constants = require('../utils/constants');
 
+const ObjectId = require('mongoose').Types.ObjectId;
+
 const User = require('../models/User');
+const Post = require('../models/forums/Post');
+const Thread = require('../models/forums/Thread');
 const Usergroup = require('../models/forums/Usergroup');
 const UserActivity = require('../models/forums/UserActivity');
+const VisitorMessage = require('../models/VisitorMessage');
 const MiscData = require('../models/MiscData');
 const router = express.Router();
 
-const { formatNameForProtocol, formatPlayerNameForDisplay } = require('../utils/format');
+const { formatNameForProtocol, formatPlayerNameForDisplay } = require('../utils/utils');
 
 router.post('/', async(req, res) => {
     //TODO - add request limiter to prevent brute force attacks
@@ -69,10 +75,10 @@ router.post('/', async(req, res) => {
 });
 
 router.delete('/:id', async(req, res) => {
-    // if (!res.loggedIn || res.loggedIn.rights < 2) {
-    //     res.status(403).send({ message: 'Insufficient privileges.' });
-    //     return;
-    // }
+    if (!res.loggedIn || res.loggedIn.rights < 2) {
+        res.status(403).send({ message: 'Insufficient privileges.' });
+        return;
+    }
     let id = req.params.id;
     let user = User.findOne({ username: id });
     if (!user)
@@ -199,6 +205,198 @@ router.post('/activity', async(req, res) => {
         console.error(err);
         res.status(500).send({ message: 'Error saving user activity.' });
     }
+});
+
+router.get('/:id', async(req, res) => {
+    let id = req.params.id;
+
+    try {
+        let user = await User.findById(id);
+        if (!user) {
+            res.status(404).send({ message: 'User not found.' });
+            return;
+        }
+
+        user = {
+            ...user._doc,
+            postCount: await user.getPostCount(),
+            threadsCreated: await user.getThreadsCreated(),
+            thanksReceived: await user.getThanksReceived(),
+            thanksGiven: await user.getThanksGiven(),
+            totalLevel: await user.getTotalLevel(),
+        };
+
+        res.status(200).json({ user });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: 'Error getting user.' });
+    }
+});
+
+router.get('/:id/threads/:page', async(req, res) => {
+
+    let id = req.params.id;
+    let page = req.params.page;
+
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ message: 'Invalid user id.' });
+        return;
+    }
+
+    try {
+
+        let user = await User.findById(id);
+        if (!user) {
+            res.status(404).send({ message: 'User not found.' });
+            return;
+        }
+
+        let threads = await Thread.find({ author: user })
+            .sort({ createdAt: -1 });
+
+        threads = await filter(threads, async(thread) => {
+            thread = await thread.fill('postCount');
+            return thread.subforum.permissions.checkCanSee(res.user, thread);
+        });
+
+        let pageTotal = Math.ceil(threads.length / 10);
+
+        if (page > pageTotal)
+            page = pageTotal;
+
+        let start = (page - 1) * 10;
+        let end = start + 10;
+
+        threads = threads.slice(start, end);
+
+        res.status(200).json({ threads, pageTotal });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: 'Error getting user.' });
+    }
+});
+
+router.get('/:id/posts/:page', async(req, res) => {
+
+    let id = req.params.id;
+    let page = req.params.page;
+
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ message: 'Invalid user id.' });
+        return;
+    }
+
+    try {
+
+        let user = await User.findById(id);
+        if (!user) {
+            res.status(404).send({ message: 'User not found.' });
+            return;
+        }
+
+        let posts = await Post.find({ author: user })
+            .sort({ createdAt: -1 });
+
+        posts = await filter(posts, async(post) => {
+            if (!post.thread) {
+                console.error('No thread for post: ' + post);
+                return false;
+            }
+            post.thread = await post.thread.fill('postCount');
+            return post.thread.subforum.permissions.checkCanSee(res.user, post.thread);
+        });
+
+        let pageTotal = Math.ceil(posts.length / 10);
+
+        if (page > pageTotal)
+            page = pageTotal;
+
+        let start = (page - 1) * 10;
+        let end = start + 10;
+
+        posts = posts.slice(start, end);
+
+        res.status(200).json({ posts, pageTotal });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: 'Error getting user.' });
+    }
+});
+
+router.get('/:id/messages/:page', async(req, res) => {
+
+    let id = req.params.id;
+    let page = req.params.page;
+
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid user id.' });
+        return;
+    }
+
+    try {
+
+        let user = await User.findById(id);
+        if (!user) {
+            res.status(404).send({ error: 'User not found.' });
+            return;
+        }
+
+        let messages = await VisitorMessage.find({ user })
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * 10)
+            .limit(10);
+
+        let pageTotal = Math.ceil(await VisitorMessage.countDocuments({ user }) / 10);
+
+        res.status(200).json({ messages, pageTotal });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: 'Error getting user.' });
+    }
+});
+
+router.post('/:id/messages', async(req, res) => {
+    if (!res.loggedIn) {
+        res.status(401).send({ error: 'Not logged in.' });
+        return;
+    }
+    //TODO - ability to disable visitors section
+
+    let id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid user id.' });
+        return;
+    }
+
+    let message = req.body.message;
+    if (message.length < 5 || message.length > 200) {
+        res.status(400).send({ error: 'Message must be between 5 and 200 characters.' });
+        return;
+    }
+
+    try {
+        let user = await User.findById(id);
+        if (!user) {
+            res.status(404).send({ error: 'User not found.' });
+            return;
+        }
+
+        let visitorMessage = new VisitorMessage({
+            user,
+            author: res.user,
+            content: message
+        });
+
+        let saved = await visitorMessage.save();
+
+        res.status(200).json({ message: saved });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: 'Error sending message.' });
+    }
+
 });
 
 module.exports = router;

@@ -25,6 +25,7 @@ router.post('/', async(req, res) => {
     }
 
     let highscores = new Highscore({
+        user: res.user,
         username: req.body.username,
         totalLevel: req.body.totalLevel,
         totalXP: req.body.totalXP,

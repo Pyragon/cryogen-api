@@ -1,7 +1,7 @@
 const Post = require('../../models/forums/Post');
 const ObjectId = require('mongoose').Types.ObjectId;
 
-const { formatDate } = require('../format');
+const { formatDate } = require('../utils');
 
 let regexp = '\\[quotes=#?([a-z0-9]+)\\]';
 

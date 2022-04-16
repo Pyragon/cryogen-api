@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const censor = require('../../utils/censor');
 const constants = require('../../utils/constants');
-const { formatMessage } = require('../../utils/format');
+const { formatMessage } = require('../../utils/utils');
 
 const ChatboxMessage = require('../../models/forums/ChatboxMessage');
 const User = require('../../models/User');

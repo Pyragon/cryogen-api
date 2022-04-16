@@ -1,7 +1,7 @@
 const BBCode = require('../models/forums/BBCode');
 const fs = require('fs');
 
-const { escapeHtml } = require('./format');
+const { escapeHtml } = require('./utils');
 
 class BBCodeManager {
 

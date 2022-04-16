@@ -37,6 +37,13 @@ router.get('/:id', async(req, res) => {
             return;
         }
 
+        let bbcodeManager = new BBCodeManager(post);
+
+        post = {
+            ...post._doc,
+            formatted: await bbcodeManager.getFormattedPost(res.user),
+        }
+
         res.status(200).json({ post });
 
     } catch (err) {
@@ -81,12 +88,18 @@ router.post('/', async(req, res) => {
         });
         let savedPost = await post.save();
 
+        let bbcodeManager = new BBCodeManager(savedPost);
+
         let results = {
-            post: savedPost,
+            post: {
+                ...savedPost._doc,
+                formatted: await bbcodeManager.getFormattedPost(res.user),
+            },
             postCount: await user.getPostCount(),
             thanksReceived: await user.getThanksReceived(),
             thanksGiven: await user.getThanksGiven(),
-            thanks: await savedPost.getThanks()
+            thanks: await savedPost.getThanks(),
+            totalLevel: await user.getTotalLevel(),
         };
         //return page the new post is on, send notification asking if they want to go to the page
         //after they've posted
@@ -214,13 +227,18 @@ router.post('/:id/delete', async(req, res) => {
             counts[user.username] = postCount;
             received[user.username] = thanksReceived;
             given[user.username] = thanksGiven;
+            let bbcodeManager = new BBCodeManager(post);
             let results = {
                 index: index++,
-                post,
+                post: {
+                    ...post._doc,
+                    formatted: await bbcodeManager.getFormattedPost(res.user),
+                },
                 postCount,
                 thanksReceived,
                 thanksGiven,
-                thanks: await post.getThanks()
+                thanks: await post.getThanks(),
+                totalLevel: await user.getTotalLevel(),
             };
             return results;
         }));
@@ -301,7 +319,7 @@ router.get('/children/:id/:page', async(req, res) => {
         let posts = await Post.find({ thread: thread._id })
             .skip((page - 1) * 10)
             .limit(10)
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: 1 });
         let counts = [],
             received = [],
             given = [];
@@ -324,7 +342,8 @@ router.get('/children/:id/:page', async(req, res) => {
                 postCount,
                 thanksReceived,
                 thanksGiven,
-                thanks: await post.getThanks()
+                thanks: await post.getThanks(),
+                totalLevel: await user.getTotalLevel(),
             };
             return results;
         }));
