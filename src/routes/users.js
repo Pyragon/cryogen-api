@@ -125,35 +125,44 @@ router.post('/auth', async(req, res) => {
     let otp = req.body.otp;
 
     username = formatNameForProtocol(username);
+    try {
 
-    let user = await User.findOne({ username });
-    if (!user) {
-        res.status(200).send({ success: false });
-        return;
-    }
-    if (user.tfaKey) {
-        if (!otp) {
-            res.status(200).send({ success: false, message: 'Two-factor authentication is enabled. Please provide the one-time password.' });
+        let user = await User.findOne({ username });
+        if (!user) {
+            res.status(401).send({ message: 'Invalid username or password.' });
             return;
         }
-        let secret = user.tfaKey;
-        let verified = verify(secret, otp);
-        if (!verified) {
-            res.status(200).send({ success: false, message: 'Invalid one-time password.' });
+        if (user.tfaKey) {
+            if (!otp) {
+                res.status(401).send({ message: 'Two-factor authentication is enabled. Please enter your OTP.' });
+                return;
+            }
+            let secret = user.tfaKey;
+            let verified = verify(secret, otp);
+            if (!verified) {
+                res.status(401).send({ message: 'Invalid OTP.' });
+                return;
+            }
+        }
+
+        let valid = await bcrypt.compare(password, user.hash);
+        if (!valid) {
+            res.status(401).send({ message: 'Invalid username or password.' });
             return;
         }
-    }
+        let sessionId = crypto.randomBytes(16).toString('base64');
+        user.sessionId = sessionId;
 
-    let valid = await bcrypt.compare(password, user.hash);
-    let result = {
-        success: valid,
-    };
-    if (valid) {
-        result.sessionId = crypto.randomBytes(16).toString('base64');
-        user.sessionId = result.sessionId;
-        result.user = await user.save();
+        await user.save();
+
+        res.status(200).send({
+            sessionId,
+            user
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: 'Error logging in.' });
     }
-    res.status(200).send(result);
 });
 
 router.post('/activity', async(req, res) => {
