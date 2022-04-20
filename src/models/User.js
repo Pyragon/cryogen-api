@@ -69,10 +69,6 @@ const userSchema = new Schema({
         type: String,
         required: false,
         default: null
-    },
-    sessionId: {
-        type: String,
-        required: false,
     }
 }, {
     timestamps: true,

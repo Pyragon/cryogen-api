@@ -9,6 +9,7 @@ const constants = require('../utils/constants');
 const ObjectId = require('mongoose').Types.ObjectId;
 
 const User = require('../models/User');
+const Session = require('../models/Session');
 const Post = require('../models/forums/Post');
 const Thread = require('../models/forums/Thread');
 const Usergroup = require('../models/forums/Usergroup');
@@ -109,9 +110,11 @@ router.post('/logout', async(req, res) => {
         res.status(401).send({ message: 'Not logged in.' });
         return;
     }
-    res.user.sessionId = '';
     try {
-        await res.user.save();
+
+        let session = await Session.findOne({ sessionId: res.sessionId });
+        if (session) await session.deleteOne();
+
         res.status(200).json({ success: true });
     } catch (err) {
         console.error(err);
@@ -122,6 +125,7 @@ router.post('/logout', async(req, res) => {
 router.post('/auth', async(req, res) => {
     let username = req.body.username;
     let password = req.body.password;
+    let remember = req.body.remember;
     let otp = req.body.otp;
 
     username = formatNameForProtocol(username);
@@ -151,7 +155,20 @@ router.post('/auth', async(req, res) => {
             return;
         }
         let sessionId = crypto.randomBytes(16).toString('base64');
-        user.sessionId = sessionId;
+
+        let expires = Date.now();
+        if (remember)
+            expires += (1000 * 60 * 60 * 24 * 60);
+        else
+            expires += (1000 * 60 * 60 * 24);
+
+        let session = new Session({
+            user,
+            sessionId,
+            expires
+        });
+
+        await session.save();
 
         await user.save();
 

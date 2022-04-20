@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const User = require('../models/User');
+const Session = require('../models/Session');
 
 let middleware = async(req, res, next) => {
 
@@ -14,7 +15,14 @@ let middleware = async(req, res, next) => {
 
     try {
         //get session from database
-        let user = await User.findOne({ sessionId });
+        let session = await Session.findOne({ sessionId });
+        if (!session) {
+            res.loggedIn = false;
+            next();
+            return;
+        }
+
+        let user = session.user;
 
         if (!user) {
             res.loggedIn = false;
@@ -23,6 +31,7 @@ let middleware = async(req, res, next) => {
         }
         res.loggedIn = true;
         res.user = user;
+        res.sessionId = sessionId;
     } catch (err) {
         console.error(err);
         res.loggedIn = false;
