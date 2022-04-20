@@ -369,10 +369,10 @@ router.get('/:id/messages/:page', async(req, res) => {
 
         let messages = await VisitorMessage.find({ user })
             .sort({ createdAt: -1 })
-            .skip((page - 1) * 10)
-            .limit(10);
+            .skip((page - 1) * 5)
+            .limit(5);
 
-        let pageTotal = Math.ceil(await VisitorMessage.countDocuments({ user }) / 10);
+        let pageTotal = Math.ceil(await VisitorMessage.countDocuments({ user }) / 5);
 
         res.status(200).json({ messages, pageTotal });
     } catch (error) {
@@ -423,6 +423,42 @@ router.post('/:id/messages', async(req, res) => {
         res.status(500).send({ error: 'Error sending message.' });
     }
 
+});
+
+router.delete('/messages/:id', async(req, res) => {
+    if (!res.loggedIn) {
+        res.status(401).send({ error: 'Not logged in.' });
+        return;
+    }
+
+    let id = req.params.id;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid message id.' });
+        return;
+    }
+
+    try {
+
+        let message = await VisitorMessage.findById(id);
+        if (!message) {
+            res.status(404).send({ error: 'Message not found.' });
+            return;
+        }
+
+        if (!message.author._id.equals(res.user._id) && !message.user._id.equals(res.user._id)) {
+            res.status(403).send({ error: 'You do not have permission to delete this message.' });
+            return;
+        }
+
+        await message.remove();
+
+        res.status(200).send({ message: 'Message deleted.' });
+
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: 'Error deleting message.' });
+    }
 });
 
 module.exports = router;
