@@ -6,6 +6,7 @@ const Poll = require('../../models/forums/Poll');
 const Subforum = require('../../models/forums/Subforum');
 const User = require('../../models/User');
 const UserActivity = require('../../models/forums/UserActivity');
+const ThreadView = require('../../models/forums/ThreadView');
 const saveModLog = require('../../utils/mod-logs');
 
 router.get('/:id', async(req, res) => {
@@ -39,6 +40,20 @@ router.get('/:id', async(req, res) => {
             res.status(403).send({ message: 'You do not have permission to view this thread.' });
             return;
         }
+
+        let threadView = await ThreadView.findOne({ thread, user: res.user });
+        if (!threadView)
+            threadView = new ThreadView({ thread, user: res.user, expiry: Date.now() + (1000 * 60 * 60) });
+        else if (Date.now() > threadView.expiry)
+            threadView.expiry = Date.now() + (1000 * 60 * 60);
+        else threadView = null;
+
+        if (threadView) {
+            thread.views++;
+            await threadView.save();
+            await thread.save();
+        }
+
         res.status(200).json(thread);
     } catch (err) {
         console.error(err);

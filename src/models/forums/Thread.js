@@ -41,6 +41,11 @@ let schema = new Schema({
         required: false,
         default: false
     },
+    views: {
+        type: Number,
+        required: false,
+        default: 0
+    }
 }, {
     timestamps: true,
     toJSON: {
