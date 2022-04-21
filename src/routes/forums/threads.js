@@ -40,10 +40,11 @@ router.get('/:id', async(req, res) => {
             res.status(403).send({ message: 'You do not have permission to view this thread.' });
             return;
         }
+        let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-        let threadView = await ThreadView.findOne({ thread, user: res.user });
+        let threadView = await ThreadView.findOne({ thread, ip });
         if (!threadView)
-            threadView = new ThreadView({ thread, user: res.user, expiry: Date.now() + (1000 * 60 * 60) });
+            threadView = new ThreadView({ thread, ip, expiry: Date.now() + (1000 * 60 * 60) });
         else if (Date.now() > threadView.expiry)
             threadView.expiry = Date.now() + (1000 * 60 * 60);
         else threadView = null;

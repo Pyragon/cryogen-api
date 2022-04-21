@@ -8,11 +8,9 @@ const schema = Schema({
         required: true,
         autopopulate: true,
     },
-    user: {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
+    ip: {
+        type: String,
         required: true,
-        autopopulate: true,
     },
     expiry: {
         type: Date,
