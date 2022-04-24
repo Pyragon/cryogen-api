@@ -15,13 +15,13 @@ async function getSubforumChildren(parent = null, res, req) {
     try {
         if (parent != null) {
             if (!ObjectId.isValid(parent)) {
-                res.status(404).send({ message: 'Parent subforum not found.' });
+                res.status(404).send({ error: 'Parent subforum not found.' });
                 console.log('ID from getChildren is not valid', id);
                 return;
             }
             parent = await Subforum.findById(parent);
             if (!parent) {
-                res.status(404).send({ message: 'Parent subforum not found.' });
+                res.status(404).send({ error: 'Parent subforum not found.' });
                 return;
             }
         }
@@ -36,14 +36,14 @@ async function getSubforumChildren(parent = null, res, req) {
         res.status(200).send(subforums);
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error getting categories.' });
+        res.status(500).send({ error: 'Error getting categories.' });
     }
 }
 
 router.get('/children/:id', async(req, res) => {
     let parentId = req.params.id;
     if (!parentId) {
-        res.status(400).send({ message: 'No id provided.' });
+        res.status(400).send({ error: 'No id provided.' });
         return;
     }
     getSubforumChildren(parentId, res, req);
@@ -52,17 +52,17 @@ router.get('/children/:id', async(req, res) => {
 router.get('/:id', async(req, res) => {
     let id = req.params.id;
     if (!id) {
-        res.status(400).send({ message: 'No id provided.' });
+        res.status(400).send({ error: 'No id provided.' });
         return;
     }
     if (!ObjectId.isValid(id)) {
-        res.status(400).send({ message: 'Invalid id.' });
+        res.status(400).send({ error: 'Invalid id.' });
         console.log('ID from GET is not valid', id);
         return;
     }
     let subforum = await Subforum.findById(id).fill('extraData');
     if (subforum.permissions && !subforum.permissions.checkCanSee(res.user)) {
-        res.status(403).send({ message: 'You do not have permission to view this subforum.' });
+        res.status(403).send({ error: 'You do not have permission to view this subforum.' });
         return;
     }
     res.status(200).send(subforum);
@@ -76,18 +76,18 @@ router.post('/', async(req, res) => {
 
     try {
         if (!res.loggedIn) {
-            res.status(403).send({ message: 'You do not have permission to do this.' });
+            res.status(403).send({ error: 'You do not have permission to do this.' });
             return;
         }
         if (res.user.displayGroup.rights < 2) {
-            res.status(403).send({ message: 'You do not have permission to do this.' });
+            res.status(403).send({ error: 'You do not have permission to do this.' });
             return;
         }
         let parent = null;
         if (req.body.parentId) {
             parent = await Subforum.findById(req.body.parentId);
             if (!parent) {
-                res.status(400).send({ message: 'Parent subforum not found.' });
+                res.status(400).send({ error: 'Parent subforum not found.' });
                 return;
             }
         }
@@ -96,7 +96,7 @@ router.post('/', async(req, res) => {
         if (req.body.permissionsId) {
             permissions = await Permissions.findById(req.body.permissionsId);
             if (!permissions) {
-                res.status(400).send({ message: 'Permissions not found.' });
+                res.status(400).send({ error: 'Permissions not found.' });
                 return;
             }
         }
@@ -114,7 +114,7 @@ router.post('/', async(req, res) => {
         res.status(200).send(subforum);
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: err });
+        res.status(500).send({ error: err });
     }
 });
 

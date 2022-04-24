@@ -33,7 +33,7 @@ router.get('/', async(req, res) => {
 
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: err });
+        res.status(500).send({ error: err });
     }
 });
 
@@ -43,7 +43,7 @@ router.get('/online', async(req, res) => {
         res.status(200).send(online);
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: err });
+        res.status(500).send({ error: err });
     }
 });
 

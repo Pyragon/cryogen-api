@@ -14,13 +14,13 @@ router.get('/mini', async(req, res) => {
         res.status(200).send(highscores);
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error getting highscores.' });
+        res.status(500).send({ error: 'Error getting highscores.' });
     }
 });
 
 router.post('/', async(req, res) => {
     if (req.hostname != 'localhost') {
-        res.status(403).send({ message: 'Insufficient permissions' });
+        res.status(403).send({ error: 'Insufficient permissions' });
         return;
     }
 
@@ -52,7 +52,7 @@ router.post('/', async(req, res) => {
 
     } catch (error) {
         console.error(error);
-        res.status(500).send({ message: error });
+        res.status(500).send({ error: error });
     }
 
 });

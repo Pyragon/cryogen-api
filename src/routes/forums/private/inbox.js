@@ -5,7 +5,7 @@ const MessageChain = require('../../../models/forums/private/MessageChain')
 
 router.get('/:page', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to view your inbox.' });
+        res.status(401).send({ error: 'You must be logged in to view your inbox.' });
         return;
     }
 

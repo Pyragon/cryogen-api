@@ -11,13 +11,13 @@ const User = require('../../models/User');
 
 router.get('/:id', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to view a post.' });
+        res.status(401).send({ error: 'You must be logged in to view a post.' });
         return;
     }
 
     let id = req.params.id;
     if (!ObjectId.isValid(id)) {
-        res.status(400).send({ message: 'Invalid post id.' });
+        res.status(400).send({ error: 'Invalid post id.' });
         console.error('Invalid post id.');
         return;
     }
@@ -26,13 +26,13 @@ router.get('/:id', async(req, res) => {
 
         let post = await Post.findById(id);
         if (!post) {
-            res.status(404).send({ message: 'Post not found.' });
+            res.status(404).send({ error: 'Post not found.' });
             console.error('Post not found.');
             return;
         }
 
         if (!post.thread.subforum.permissions.checkCanSee(res.user, post.thread)) {
-            res.status(404).send({ message: 'Post not found.' });
+            res.status(404).send({ error: 'Post not found.' });
             console.error('Does not have permission to view this post.');
             return;
         }
@@ -48,14 +48,14 @@ router.get('/:id', async(req, res) => {
 
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error viewing post.' });
+        res.status(500).send({ error: 'Error viewing post.' });
     }
 });
 
 router.post('/', async(req, res) => {
 
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to post.' });
+        res.status(401).send({ error: 'You must be logged in to post.' });
         return;
     }
 
@@ -71,12 +71,12 @@ router.post('/', async(req, res) => {
     try {
         let thread = await Thread.findOne({ _id: threadId });
         if (!thread) {
-            res.status(404).send({ message: 'Invalid thread id.' });
+            res.status(404).send({ error: 'Invalid thread id.' });
             return;
         }
 
         if (!thread.subforum.permissions.checkCanSee(user, thread) || !thread.subforum.permissions.checkCanReply(user)) {
-            res.status(403).send({ message: 'You do not have permission to post in this subforum.' });
+            res.status(403).send({ error: 'You do not have permission to post in this subforum.' });
             return;
         }
 
@@ -107,14 +107,14 @@ router.post('/', async(req, res) => {
         res.status(201).json(results);
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error creating post.' });
+        res.status(500).send({ error: 'Error creating post.' });
     }
 
 });
 
 router.post('/:id/thanks/remove', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to remove your thanks.' });
+        res.status(401).send({ error: 'You must be logged in to remove your thanks.' });
         return;
     }
 
@@ -122,30 +122,30 @@ router.post('/:id/thanks/remove', async(req, res) => {
     try {
         let post = await Post.findById(postId);
         if (!post) {
-            res.status(404).send({ message: 'Invalid post id.' });
+            res.status(404).send({ error: 'Invalid post id.' });
             return;
         }
         let user = res.user;
         if (!post.thread.subforum.permissions.checkCanSee(user, post.thread)) {
-            res.status(403).send({ message: 'You do not have permission to remove thanks in this subforum.' });
+            res.status(403).send({ error: 'You do not have permission to remove thanks in this subforum.' });
             return;
         }
         let thank = await Thank.findOne({ post: post._id, user });
         if (!thank) {
-            res.status(404).send({ message: 'You have not thanked this post.' });
+            res.status(404).send({ error: 'You have not thanked this post.' });
             return;
         }
         await thank.remove();
         res.status(200).json({ thanks: await post.getThanks() });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error removing thanks.' });
+        res.status(500).send({ error: 'Error removing thanks.' });
     }
 });
 
 router.post('/:id/thanks', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to thank a post.' });
+        res.status(401).send({ error: 'You must be logged in to thank a post.' });
         return;
     }
 
@@ -155,16 +155,16 @@ router.post('/:id/thanks', async(req, res) => {
 
         let post = await Post.findOne({ _id: postId });
         if (!post) {
-            res.status(404).send({ message: 'Invalid post id.' });
+            res.status(404).send({ error: 'Invalid post id.' });
             return;
         }
         if (!post.thread.subforum.permissions.checkCanSee(user, post.thread)) {
-            res.status(403).send({ message: 'You do not have permission to add thanks in this subforum.' });
+            res.status(403).send({ error: 'You do not have permission to add thanks in this subforum.' });
             return;
         }
         let thanks = await post.getThanks();
         if (thanks.includes(user)) {
-            res.status(400).send({ message: 'Already thanked.' });
+            res.status(400).send({ error: 'Already thanked.' });
             return;
         }
         let thanksSchema = new Thank({
@@ -176,13 +176,13 @@ router.post('/:id/thanks', async(req, res) => {
         res.status(201).json({ thanks: await post.getThanks() });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error thanking post.' });
+        res.status(500).send({ error: 'Error thanking post.' });
     }
 });
 
 router.post('/:id/delete', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to delete a post.' });
+        res.status(401).send({ error: 'You must be logged in to delete a post.' });
         return;
     }
     let page = req.body.page;
@@ -190,24 +190,24 @@ router.post('/:id/delete', async(req, res) => {
     try {
         let post = await Post.findById(postId);
         if (!post) {
-            res.status(404).send({ message: 'Invalid post id.' });
+            res.status(404).send({ error: 'Invalid post id.' });
             return;
         }
         let user = res.user;
         if (!post.thread.subforum.permissions.checkCanModerate(user)) {
-            res.status(403).send({ message: 'You do not have permission to delete posts in this subforum.' });
+            res.status(403).send({ error: 'You do not have permission to delete posts in this subforum.' });
             return;
         }
         let firstPost = await post.find({ thread: post.thread._id }).sort({ createdAt: 1 }).limit(1);
         if (firstPost._id.equals(post._id)) {
-            res.status(403).send({ message: 'You cannot delete the first post of a thread. Delete the thread above instead.' });
+            res.status(403).send({ error: 'You cannot delete the first post of a thread. Delete the thread above instead.' });
             return;
         }
         await post.remove();
 
         let totalPosts = await Post.countDocuments({ thread: post.thread._id });
         if ((page - 1) * 10 >= totalPosts) {
-            res.status(404).send({ message: 'Invalid page.' });
+            res.status(404).send({ error: 'Invalid page.' });
             return;
         }
 
@@ -246,14 +246,14 @@ router.post('/:id/delete', async(req, res) => {
         res.status(200).send({ posts });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error deleting post.' });
+        res.status(500).send({ error: 'Error deleting post.' });
     }
 });
 
 router.put('/:id', async(req, res) => {
 
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to edit a post.' });
+        res.status(401).send({ error: 'You must be logged in to edit a post.' });
         return;
     }
 
@@ -269,11 +269,11 @@ router.put('/:id', async(req, res) => {
 
         let post = await Post.findOne({ _id: postId });
         if (!post) {
-            res.status(404).send({ message: 'Invalid post id.' });
+            res.status(404).send({ error: 'Invalid post id.' });
             return;
         }
         if (!post.author.equals(res.user._id) && !post.thread.subforum.permissions.checkCanModerate(res.user)) {
-            res.status(401).send({ message: 'You cannot edit this post.' });
+            res.status(401).send({ error: 'You cannot edit this post.' });
             return;
         }
         post.content = content;
@@ -290,7 +290,7 @@ router.put('/:id', async(req, res) => {
 
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error editing post.' });
+        res.status(500).send({ error: 'Error editing post.' });
     }
 
 });
@@ -299,20 +299,20 @@ router.get('/children/:id/:page', async(req, res) => {
     let parentId = req.params.id;
     let page = req.params.page || 1;
     if (!parentId) {
-        res.status(400).send({ message: 'No id provided.' });
+        res.status(400).send({ error: 'No id provided.' });
         return;
     }
     try {
         let thread = await Thread.findOne({ _id: parentId });
 
         if (!thread || !thread.subforum.permissions.checkCanSee(res.user, thread)) {
-            res.status(404).send({ message: 'Invalid thread id.' });
+            res.status(404).send({ error: 'Invalid thread id.' });
             return;
         }
 
         let totalPosts = await Post.countDocuments({ thread: thread._id });
         if ((page - 1) * 10 >= totalPosts) {
-            res.status(404).send({ message: 'Invalid page.' });
+            res.status(404).send({ error: 'Invalid page.' });
             return;
         }
 
@@ -350,7 +350,7 @@ router.get('/children/:id/:page', async(req, res) => {
         res.status(200).send(posts);
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error getting posts.' });
+        res.status(500).send({ error: 'Error getting posts.' });
     }
 });
 

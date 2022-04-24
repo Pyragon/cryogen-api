@@ -5,13 +5,13 @@ const Permissions = require('../../models/forums/Permissions');
 
 router.post('/', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to create permissions.' });
+        res.status(401).send({ error: 'You must be logged in to create permissions.' });
         return;
     }
 
     //TODO - is superadmin or admin
     if (!res.user.displayGroup._id.equals('61d53bc06e69950afc61cc9b')) {
-        res.status(401).send({ message: 'You must be an admin to create permissions.' });
+        res.status(401).send({ error: 'You must be an admin to create permissions.' });
         return;
     }
 
@@ -29,7 +29,7 @@ router.post('/', async(req, res) => {
         res.status(201).json({ permissions: savedPermissions });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error creating permissions.' });
+        res.status(500).send({ error: 'Error creating permissions.' });
     }
 });
 

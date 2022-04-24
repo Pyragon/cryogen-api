@@ -24,60 +24,91 @@ router.post('/', async(req, res) => {
     //TODO - add request limiter to prevent brute force attacks
     let username = req.body.username;
     let password = req.body.password;
+    let displayGroup = req.body.displayGroup;
+    let usergroups = req.body.usergroups;
+    let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
     if (!username || !password) {
-        res.status(400).send({ message: 'Missing username or password.' });
+        res.status(400).send({ error: 'Missing username or password.' });
         return;
     }
-    if (username.length < 3 || username.length > 20) {
-        res.status(400).send({ message: 'Username must be between 3 and 20 characters.' });
+    if (username.length < 3 || username.length > 12) {
+        res.status(400).send({ error: 'Username must be between 3 and 12 characters.' });
         return;
     }
     if (password.length < 8 || password.length > 50) {
-        res.status(400).send({ message: 'Password must be between 8 and 50 characters.' });
+        res.status(400).send({ error: 'Password must be between 8 and 50 characters.' });
         return;
     }
+    username = username.toLowerCase().replace(" ", "_");
     //make sure there are no special characters in username
     if (/[^a-zA-Z0-9_]/.test(username)) {
-        res.status(400).send({ message: 'Username can only contain letters, numbers, and underscores.' });
+        res.status(400).send({ error: 'Username can only contain letters, numbers, and underscores.' });
         return;
     }
 
-    username = username.toLowerCase().replace(" ", "_");
     let user = await User.findOne({ username });
     if (user) {
-        res.status(400).send({ message: 'Username already exists.' });
+        res.status(400).send({ error: 'Username already exists.' });
         return;
     }
-    let group = constants['REGULAR_USERGROUP'];
-    if (group) {
-        group = await Usergroup.findOne({ _id: group });
-        if (!group) {
-            res.status(400).send({ message: 'Invalid display group.' });
+
+    if (displayGroup) {
+        displayGroup = await Usergroup.findOne({ _id: displayGroup });
+        if (!displayGroup) {
+            res.status(400).send({ error: 'Invalid display group.' });
             return;
         }
+    } else
+        displayGroup = constants['REGULAR_USERGROUP'];
+
+    if (usergroups) {
+        if (!usergroups.includes(constants['REGULAR_USERGROUP']))
+            usergroups.push(constants['REGULAR_USERGROUP']);
+        for (let i = 0; i < usergroups.length; i++) {
+            let group = await Usergroup.findOne({ _id: usergroups[i] });
+            if (!group) {
+                res.status(400).send({ error: 'Invalid usergroup.' });
+                return;
+            }
+            usergroups[i] = group;
+        }
     }
+
+
     let displayName = formatPlayerNameForDisplay(username);
     let hash = await bcrypt.hash(password, 10);
     let sessionId = crypto.randomBytes(16).toString('base64');
+
     user = new User({
         username,
         displayName,
         hash,
-        displayGroup: group,
-        sessionId
+        displayGroup,
+        usergroups,
+        creationIp: ip
     });
     try {
         let savedUser = await user.save();
+
+        let session = new Session({
+            user: savedUser,
+            sessionId,
+            expires: Date.now() + 1000 * 60 * 30,
+        });
+
+        await session.save();
+
         res.status(201).json({ success: true, sessionId, user: savedUser });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error creating user.' });
+        res.status(500).send({ error: 'Error creating user.' });
     }
 });
 
 router.delete('/:id', async(req, res) => {
     if (!res.loggedIn || res.loggedIn.rights < 2) {
-        res.status(403).send({ message: 'Insufficient privileges.' });
+        res.status(403).send({ error: 'Insufficient privileges.' });
         return;
     }
     let id = req.params.id;
@@ -85,7 +116,7 @@ router.delete('/:id', async(req, res) => {
     if (!user)
         user = User.findById(id);
     if (!user) {
-        res.status(404).send({ message: 'User not found.' });
+        res.status(404).send({ error: 'User not found.' });
         return;
     }
     try {
@@ -93,7 +124,7 @@ router.delete('/:id', async(req, res) => {
         res.status(200).json({ success: true });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error deleting user.' });
+        res.status(500).send({ error: 'Error deleting user.' });
     }
 });
 
@@ -107,7 +138,7 @@ router.get('/auth', async(req, res) => {
 router.post('/logout', async(req, res) => {
     if (!res.loggedIn) {
         console.error('not logged in');
-        res.status(401).send({ message: 'Not logged in.' });
+        res.status(401).send({ error: 'Not logged in.' });
         return;
     }
     try {
@@ -118,7 +149,7 @@ router.post('/logout', async(req, res) => {
         res.status(200).json({ success: true });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error logging out.' });
+        res.status(500).send({ error: 'Error logging out.' });
     }
 });
 
@@ -133,25 +164,25 @@ router.post('/auth', async(req, res) => {
 
         let user = await User.findOne({ username });
         if (!user) {
-            res.status(401).send({ message: 'Invalid username or password.' });
+            res.status(401).send({ error: 'Invalid username or password.' });
             return;
         }
         if (user.tfaKey) {
             if (!otp) {
-                res.status(401).send({ message: 'Two-factor authentication is enabled. Please enter your OTP.' });
+                res.status(401).send({ error: 'Two-factor authentication is enabled. Please enter your OTP.' });
                 return;
             }
             let secret = user.tfaKey;
             let verified = verify(secret, otp);
             if (!verified) {
-                res.status(401).send({ message: 'Invalid OTP.' });
+                res.status(401).send({ error: 'Invalid OTP.' });
                 return;
             }
         }
 
         let valid = await bcrypt.compare(password, user.hash);
         if (!valid) {
-            res.status(401).send({ message: 'Invalid username or password.' });
+            res.status(401).send({ error: 'Invalid username or password.' });
             return;
         }
         let sessionId = crypto.randomBytes(16).toString('base64');
@@ -178,20 +209,20 @@ router.post('/auth', async(req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error logging in.' });
+        res.status(500).send({ error: 'Error logging in.' });
     }
 });
 
 router.post('/activity', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'Not logged in.' });
+        res.status(401).send({ error: 'Not logged in.' });
         return;
     }
     let activity = req.body.activity;
     let type = req.body.type;
     let id = req.body.id;
     if (!activity) {
-        res.status(400).send({ message: 'Missing activity.' });
+        res.status(400).send({ error: 'Missing activity.' });
         return;
     }
     let userActivity = await UserActivity.findOne({ 'user': res.user._id });
@@ -229,7 +260,7 @@ router.post('/activity', async(req, res) => {
         }
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error saving user activity.' });
+        res.status(500).send({ error: 'Error saving user activity.' });
     }
 });
 
@@ -239,7 +270,7 @@ router.get('/:id', async(req, res) => {
     try {
         let user = await User.findById(id);
         if (!user) {
-            res.status(404).send({ message: 'User not found.' });
+            res.status(404).send({ error: 'User not found.' });
             return;
         }
 
@@ -255,7 +286,7 @@ router.get('/:id', async(req, res) => {
         res.status(200).json({ user });
     } catch (error) {
         console.error(error);
-        res.status(500).send({ message: 'Error getting user.' });
+        res.status(500).send({ error: 'Error getting user.' });
     }
 });
 
@@ -265,7 +296,7 @@ router.get('/:id/threads/:page', async(req, res) => {
     let page = req.params.page;
 
     if (!ObjectId.isValid(id)) {
-        res.status(400).send({ message: 'Invalid user id.' });
+        res.status(400).send({ error: 'Invalid user id.' });
         return;
     }
 
@@ -273,7 +304,7 @@ router.get('/:id/threads/:page', async(req, res) => {
 
         let user = await User.findById(id);
         if (!user) {
-            res.status(404).send({ message: 'User not found.' });
+            res.status(404).send({ error: 'User not found.' });
             return;
         }
 
@@ -298,7 +329,7 @@ router.get('/:id/threads/:page', async(req, res) => {
         res.status(200).json({ threads, pageTotal });
     } catch (error) {
         console.error(error);
-        res.status(500).send({ message: 'Error getting user.' });
+        res.status(500).send({ error: 'Error getting user.' });
     }
 });
 
@@ -308,7 +339,7 @@ router.get('/:id/posts/:page', async(req, res) => {
     let page = req.params.page;
 
     if (!ObjectId.isValid(id)) {
-        res.status(400).send({ message: 'Invalid user id.' });
+        res.status(400).send({ error: 'Invalid user id.' });
         return;
     }
 
@@ -316,7 +347,7 @@ router.get('/:id/posts/:page', async(req, res) => {
 
         let user = await User.findById(id);
         if (!user) {
-            res.status(404).send({ message: 'User not found.' });
+            res.status(404).send({ error: 'User not found.' });
             return;
         }
 

@@ -18,31 +18,31 @@ router.get('/', async(req, res) => {
         res.status(200).send({ messages: messages });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: err });
+        res.status(500).send({ error: err });
     }
 });
 
 router.post('/', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to post.' });
+        res.status(401).send({ error: 'You must be logged in to post.' });
         return;
     }
     let user = res.user;
     //TODO - show error message in react
     if (user.displayGroup._id.equals(constants['BANNED_USERGROUP'])) {
-        res.status(403).send({ message: 'You are banned from posting.' });
+        res.status(403).send({ error: 'You are banned from posting.' });
         return;
     }
     let chatboxMutedGroup = user.usergroups.find(group => group._id.equals(constants['CHATBOX_MUTED_USERGROUP']));
     if (chatboxMutedGroup) {
-        res.status(403).send({ message: 'You are muted from the chatbox.' });
+        res.status(403).send({ error: 'You are muted from the chatbox.' });
         return;
     }
     //TODO - switch to use socketio
     let message = formatMessage(req.body.message);
     message = censor(message);
     if (message.length < 4 || message.length > 200) {
-        res.status(400).send({ message: 'Message must be between 4 and 200 characters long.' });
+        res.status(400).send({ error: 'Message must be between 4 and 200 characters long.' });
         return;
     }
     let chatboxMessage = new ChatboxMessage({
@@ -55,7 +55,7 @@ router.post('/', async(req, res) => {
         res.status(200).send({ message: savedMessage });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: err });
+        res.status(500).send({ error: err });
     }
 });
 

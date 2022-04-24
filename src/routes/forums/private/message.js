@@ -10,24 +10,24 @@ const MessageChain = require('../../../models/forums/private/MessageChain');
 router.get('/chain/:chain/:page', async(req, res) => {
 
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to view a chain.' });
+        res.status(401).send({ error: 'You must be logged in to view a chain.' });
         return;
     }
 
     let chain = req.params.chain;
     let page = Number(req.params.page) || 1;
     if (!ObjectId.isValid(chain)) {
-        res.status(400).send({ message: 'Invalid chain id.' });
+        res.status(400).send({ error: 'Invalid chain id.' });
         return;
     }
     try {
         let messageChain = await MessageChain.findById(chain);
         if (!messageChain) {
-            res.status(404).send({ message: 'Chain not found.' });
+            res.status(404).send({ error: 'Chain not found.' });
             return;
         }
         if (!messageChain.author._id.equals(res.user._id) && !messageChain.recipients.includes(res.user._id)) {
-            res.status(404).send({ message: 'Chain not found.' });
+            res.status(404).send({ error: 'Chain not found.' });
             return;
         }
 
@@ -56,14 +56,14 @@ router.get('/chain/:chain/:page', async(req, res) => {
         res.status(200).send({ chain, messages, pageTotal });
     } catch (error) {
         console.error(error);
-        res.status(500).send({ message: 'Error getting chain.' });
+        res.status(500).send({ error: 'Error getting chain.' });
     }
 });
 
 router.post('/chain', async(req, res) => {
 
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to send a message.' });
+        res.status(401).send({ error: 'You must be logged in to send a message.' });
         return;
     }
 
@@ -131,7 +131,7 @@ router.post('/chain', async(req, res) => {
         res.status(200).send({ chain: savedChain, message: savedMessage });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: err });
+        res.status(500).send({ error: err });
     }
 
 });
@@ -139,7 +139,7 @@ router.post('/chain', async(req, res) => {
 router.post('/', async(req, res) => {
 
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to send a message.' });
+        res.status(401).send({ error: 'You must be logged in to send a message.' });
         return;
     }
 
@@ -193,31 +193,31 @@ router.post('/', async(req, res) => {
 
 router.post('/:id/thanks', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to thank a message.' });
+        res.status(401).send({ error: 'You must be logged in to thank a message.' });
         return;
     }
 
     let id = req.params.id;
     if (!ObjectId.isValid(id)) {
-        res.status(400).send({ message: 'Invalid message id.' });
+        res.status(400).send({ error: 'Invalid message id.' });
         console.error('Invalid message id.');
         return;
     }
     try {
         let message = await Message.findById(id);
         if (!message) {
-            res.status(404).send({ message: 'Message not found.' });
+            res.status(404).send({ error: 'Message not found.' });
             console.error('Message not found.');
             return;
         }
         if (!message.author._id.equals(res.user._id) && !message.recipients.includes(res.user._id)) {
-            res.status(404).send({ message: 'Message not found.' });
+            res.status(404).send({ error: 'Message not found.' });
             console.error('Message not found2.');
             return;
         }
         let thanks = await message.getThanks();
         if (thanks.some(thank => thank.user._id.equals(res.user._id))) {
-            res.status(400).send({ message: 'You have already thanked this message.' });
+            res.status(400).send({ error: 'You have already thanked this message.' });
             console.error('You have already thanked this message.');
             return;
         }
@@ -230,19 +230,19 @@ router.post('/:id/thanks', async(req, res) => {
         res.status(201).json({ thanks: await message.getThanks() });
     } catch (error) {
         console.error(error);
-        res.status(500).send({ message: 'Error thanking message.' });
+        res.status(500).send({ error: 'Error thanking message.' });
     }
 });
 
 router.post('/:id/thanks/remove', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to remove a thank.' });
+        res.status(401).send({ error: 'You must be logged in to remove a thank.' });
         return;
     }
 
     let id = req.params.id;
     if (!ObjectId.isValid(id)) {
-        res.status(400).send({ message: 'Invalid message id.' });
+        res.status(400).send({ error: 'Invalid message id.' });
         console.error('Invalid message id.');
         return;
     }
@@ -250,18 +250,18 @@ router.post('/:id/thanks/remove', async(req, res) => {
     try {
         let message = await Message.findById(id);
         if (!message) {
-            res.status(404).send({ message: 'Message not found.' });
+            res.status(404).send({ error: 'Message not found.' });
             console.error('Message not found.');
             return;
         }
         if (!message.author._id.equals(res.user._id) && !message.recipients.includes(res.user._id)) {
-            res.status(404).send({ message: 'Message not found.' });
+            res.status(404).send({ error: 'Message not found.' });
             console.error('Message not found2.');
             return;
         }
         let thanks = await message.getThanks();
         if (!thanks.some(thank => thank.user._id.equals(res.user._id))) {
-            res.status(400).send({ message: 'You have not thanked this message.' });
+            res.status(400).send({ error: 'You have not thanked this message.' });
             console.error('You have not thanked this message.');
             return;
         }
@@ -269,7 +269,7 @@ router.post('/:id/thanks/remove', async(req, res) => {
         res.status(200).json({ thanks: await message.getThanks() });
     } catch (error) {
         console.error(error);
-        res.status(500).send({ message: 'Error removing thank.' });
+        res.status(500).send({ error: 'Error removing thank.' });
     }
 });
 

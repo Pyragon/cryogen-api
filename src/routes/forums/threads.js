@@ -33,11 +33,11 @@ router.get('/:id', async(req, res) => {
             .fill('lastPost')
             .fill('postCount');
         if (!thread) {
-            res.status(404).send({ message: 'Thread not found.' });
+            res.status(404).send({ error: 'Thread not found.' });
             return;
         }
         if (!thread.subforum.permissions.checkCanSee(res.user, thread)) {
-            res.status(403).send({ message: 'You do not have permission to view this thread.' });
+            res.status(403).send({ error: 'You do not have permission to view this thread.' });
             return;
         }
         let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -58,7 +58,7 @@ router.get('/:id', async(req, res) => {
         res.status(200).json(thread);
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error getting thread.' });
+        res.status(500).send({ error: 'Error getting thread.' });
     }
 });
 
@@ -67,11 +67,11 @@ router.get('/:id/users', async(req, res) => {
     try {
         let thread = await Thread.findById(id);
         if (!thread) {
-            res.status(404).send({ message: 'Thread not found.' });
+            res.status(404).send({ error: 'Thread not found.' });
             return;
         }
         if (!thread.subforum.permissions.checkCanSee(res.user, thread)) {
-            res.status(403).send({ message: 'You do not have permission to view this thread.' });
+            res.status(403).send({ error: 'You do not have permission to view this thread.' });
             return;
         }
         let users = await UserActivity.find({
@@ -84,7 +84,7 @@ router.get('/:id/users', async(req, res) => {
         res.status(200).json(users);
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error getting users.' });
+        res.status(500).send({ error: 'Error getting users.' });
     }
 });
 
@@ -92,17 +92,17 @@ router.get('/children/:id', async(req, res) => {
     let id = req.params.id;
 
     if (!id) {
-        res.status(400).send({ message: 'No id provided.' });
+        res.status(400).send({ error: 'No id provided.' });
         return;
     }
     try {
         let subforum = await Subforum.findById(id);
         if (!subforum) {
-            res.status(404).send({ message: 'Subforum not found.' });
+            res.status(404).send({ error: 'Subforum not found.' });
             return;
         }
         if (!subforum.permissions.checkCanSee(res.user)) {
-            res.status(403).send({ message: 'You do not have permission to view this subforum.' });
+            res.status(403).send({ error: 'You do not have permission to view this subforum.' });
             return;
         }
         let threads = await Thread.find({ subforum: id, archived: false })
@@ -121,13 +121,13 @@ router.get('/children/:id', async(req, res) => {
         res.status(200).send(threads);
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error getting subforum.' });
+        res.status(500).send({ error: 'Error getting subforum.' });
     }
 });
 
 router.post('/', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ message: 'You must be logged in to create a thread.' });
+        res.status(401).send({ error: 'You must be logged in to create a thread.' });
         return;
     }
 
@@ -135,17 +135,17 @@ router.post('/', async(req, res) => {
 
         let subforum = await Subforum.findById(req.body.subforum);
         if (!subforum) {
-            res.status(400).send({ message: 'Invalid forum id.' });
+            res.status(400).send({ error: 'Invalid forum id.' });
             return;
         }
 
         if (!subforum.permissions.checkCanSee(res.user) || !subforum.permissions.checkCanCreateThreads(res.user)) {
-            res.status(403).send({ message: 'You do not have permission to create threads in this subforum.' });
+            res.status(403).send({ error: 'You do not have permission to create threads in this subforum.' });
             return;
         }
 
         if (subforum.isCategory) {
-            res.status(400).send({ message: 'Categories cannot have threads.' });
+            res.status(400).send({ error: 'Categories cannot have threads.' });
             return;
         }
 
@@ -190,12 +190,12 @@ router.post('/', async(req, res) => {
         }
 
         if (title.length < 5 || title.length > 50) {
-            res.status(400).send({ message: 'Title must be between 5 and 50 characters.' });
+            res.status(400).send({ error: 'Title must be between 5 and 50 characters.' });
             return;
         }
 
         if (content.length < 4 || content.length > 1000) {
-            res.status(400).send({ message: 'Content must be between 4 and 1000 characters.' });
+            res.status(400).send({ error: 'Content must be between 4 and 1000 characters.' });
             return;
         }
 
@@ -224,7 +224,7 @@ router.post('/', async(req, res) => {
         res.status(201).json({ thread: savedThread, post: savedPost });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error creating thread.' });
+        res.status(500).send({ error: 'Error creating thread.' });
     }
 });
 
@@ -233,11 +233,11 @@ router.post('/polls/removeVote', async(req, res) => {
     try {
         let poll = await Poll.findById(id);
         if (!poll) {
-            res.status(404).send({ message: 'Poll not found.' });
+            res.status(404).send({ error: 'Poll not found.' });
             return;
         }
         if (!poll.allowVoteChange) {
-            res.status(403).send({ message: 'Changing your vote is not allowed on this poll.' });
+            res.status(403).send({ error: 'Changing your vote is not allowed on this poll.' });
             return;
         }
         for (let i = 0; i < poll.votes.length; i++) {
@@ -249,7 +249,7 @@ router.post('/polls/removeVote', async(req, res) => {
         res.status(200).send({ poll: saved });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error removing vote.' });
+        res.status(500).send({ error: 'Error removing vote.' });
     }
 });
 
@@ -259,16 +259,16 @@ router.post('/polls/vote', async(req, res) => {
     try {
         let poll = await Poll.findById(id);
         if (!poll) {
-            res.status(404).send({ message: 'Poll not found.' });
+            res.status(404).send({ error: 'Poll not found.' });
             return;
         }
         let thread = await Thread.findById(poll.threadId);
         if (!thread) {
-            res.status(404).send({ message: 'Thread not found.' });
+            res.status(404).send({ error: 'Thread not found.' });
             return;
         }
         if (!thread.subforum.permissions.checkCanSee(res.user, poll.thread)) {
-            res.status(403).send({ message: 'You do not have permission to vote in this poll.' });
+            res.status(403).send({ error: 'You do not have permission to vote in this poll.' });
             return;
         }
 
@@ -276,7 +276,7 @@ router.post('/polls/vote', async(req, res) => {
             let vote = poll.votes[i];
             if (vote.user._id === res.user._id) {
                 if (poll.allowVoteChange) {
-                    res.status(403).send({ message: 'You have already voted and this poll does not allow you to change your vote.' });
+                    res.status(403).send({ error: 'You have already voted and this poll does not allow you to change your vote.' });
                     return;
                 }
                 poll.votes.splice(i, 1);
@@ -292,7 +292,7 @@ router.post('/polls/vote', async(req, res) => {
         res.status(200).send({ poll: saved });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error voting.', error: err });
+        res.status(500).send({ error: 'Error voting.', error: err });
     }
 });
 
@@ -301,11 +301,11 @@ router.post('/:id/pin', async(req, res) => {
     try {
         let thread = await Thread.findById(id);
         if (!thread) {
-            res.status(404).send({ message: 'Thread not found.' });
+            res.status(404).send({ error: 'Thread not found.' });
             return;
         }
         if (!thread.subforum.permissions.checkCanModerate(res.user, thread)) {
-            res.status(403).send({ message: 'You do not have permission to pin or unpin this thread.' });
+            res.status(403).send({ error: 'You do not have permission to pin or unpin this thread.' });
             return;
         }
         thread.pinned = !thread.pinned;
@@ -314,7 +314,7 @@ router.post('/:id/pin', async(req, res) => {
         res.status(200).send({ thread: savedThread });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error locking thread.' });
+        res.status(500).send({ error: 'Error locking thread.' });
     }
 });
 
@@ -323,11 +323,11 @@ router.post('/:id/lock', async(req, res) => {
     try {
         let thread = await Thread.findById(id);
         if (!thread) {
-            res.status(404).send({ message: 'Thread not found.' });
+            res.status(404).send({ error: 'Thread not found.' });
             return;
         }
         if (!thread.subforum.permissions.checkCanModerate(res.user, thread)) {
-            res.status(403).send({ message: 'You do not have permission to lock or unlock this thread.' });
+            res.status(403).send({ error: 'You do not have permission to lock or unlock this thread.' });
             return;
         }
         thread.open = !thread.open;
@@ -336,7 +336,7 @@ router.post('/:id/lock', async(req, res) => {
         res.status(200).send({ thread: savedThread });
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error locking thread.' });
+        res.status(500).send({ error: 'Error locking thread.' });
     }
 });
 
@@ -345,11 +345,11 @@ router.post('/:id/archive', async(req, res) => {
     try {
         let thread = await Thread.findById(id);
         if (!thread) {
-            res.status(404).send({ message: 'Thread not found.' });
+            res.status(404).send({ error: 'Thread not found.' });
             return;
         }
         if (!thread.subforum.permissions.checkCanModerate(res.user, thread)) {
-            res.status(403).send({ message: 'You do not have permission to delete or restore this thread.' });
+            res.status(403).send({ error: 'You do not have permission to delete or restore this thread.' });
             return;
         }
         thread.archived = !thread.archived;
@@ -358,7 +358,7 @@ router.post('/:id/archive', async(req, res) => {
         saveModLog(res.user, savedThread._id, 'thread', thread.archived ? 'Archived' : 'Restored');
     } catch (err) {
         console.error(err);
-        res.status(500).send({ message: 'Error archiving thread.' });
+        res.status(500).send({ error: 'Error archiving thread.' });
     }
 });
 

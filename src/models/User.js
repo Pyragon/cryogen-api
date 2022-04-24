@@ -37,14 +37,13 @@ const userSchema = new Schema({
         type: String,
         required: false,
     },
-    tempEmail: {
+    discord: {
         type: String,
         required: false,
     },
-    donator: {
-        type: Number,
-        required: false,
-        default: 0
+    creationIp: {
+        type: String,
+        required: true,
     },
     displayGroup: {
         type: Schema.Types.ObjectId,
@@ -61,9 +60,14 @@ const userSchema = new Schema({
         autopopulate: true,
     },
     recoveryQuestions: {
-        type: Array,
+        type: [Object], // { question: index, answer: String }, NOTE WHEN CREATING THAT THE ANSWER WILL HAVE TO BE EXACT (CASE INSENSITIVE)
         required: false,
-        default: []
+        default: [],
+    },
+    previousPasswords: {
+        type: [String],
+        required: false,
+        default: [],
     },
     tfaKey: {
         type: String,
