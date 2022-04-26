@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const ObjectId = require('mongoose').Types.ObjectId;
+
 const Thread = require('../../models/forums/Thread');
 const Post = require('../../models/forums/Post');
 const Poll = require('../../models/forums/Poll');
@@ -16,17 +18,21 @@ router.get('/:id', async(req, res) => {
             .sort({ createdAt: -1 })
             .limit(5)
             .fill('firstPost');
-        res.status(200).send(threads);
+        res.status(200).send({ threads });
         return;
     } else if (id == 'latest') {
         let threads = await Thread.find({ archived: false })
             .sort({ createdAt: -1 })
             .limit(4);
         threads = threads.filter(thread => thread.subforum.permissions.checkCanSee(res.user, thread));
-        res.status(200).send(threads);
+        res.status(200).send({ threads });
         return;
     }
     try {
+        if (!ObjectId.isValid(id)) {
+            res.status(400).send({ error: 'Invalid ID.' });
+            return;
+        }
         let thread = await Thread.findById(id)
             .fill('firstPost')
             .fill('pageTotal')
@@ -55,7 +61,7 @@ router.get('/:id', async(req, res) => {
             await thread.save();
         }
 
-        res.status(200).json(thread);
+        res.status(200).json({ thread });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error getting thread.' });
@@ -64,6 +70,10 @@ router.get('/:id', async(req, res) => {
 
 router.get('/:id/users', async(req, res) => {
     let id = req.params.id;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
+        return;
+    }
     try {
         let thread = await Thread.findById(id);
         if (!thread) {
@@ -81,7 +91,7 @@ router.get('/:id/users', async(req, res) => {
                 $gte: new Date(Date.now() - (5 * 60 * 1000))
             }
         });
-        res.status(200).json(users);
+        res.status(200).json({ activities: users });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error getting users.' });
@@ -90,6 +100,10 @@ router.get('/:id/users', async(req, res) => {
 
 router.get('/children/:id', async(req, res) => {
     let id = req.params.id;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
+        return;
+    }
 
     if (!id) {
         res.status(400).send({ error: 'No id provided.' });
@@ -118,7 +132,7 @@ router.get('/children/:id', async(req, res) => {
             else
                 return b.lastPost.createdAt - a.lastPost.createdAt;
         });
-        res.status(200).send(threads);
+        res.status(200).send({ threads });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error getting subforum.' });
@@ -230,6 +244,10 @@ router.post('/', async(req, res) => {
 
 router.post('/polls/removeVote', async(req, res) => {
     let id = req.body.poll;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
+        return;
+    }
     try {
         let poll = await Poll.findById(id);
         if (!poll) {
@@ -255,6 +273,10 @@ router.post('/polls/removeVote', async(req, res) => {
 
 router.post('/polls/vote', async(req, res) => {
     let id = req.body.poll;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
+        return;
+    }
     let index = parseInt(req.body.index);
     try {
         let poll = await Poll.findById(id);
@@ -298,8 +320,16 @@ router.post('/polls/vote', async(req, res) => {
 
 router.post('/:id/pin', async(req, res) => {
     let id = req.params.id;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
+        return;
+    }
     try {
-        let thread = await Thread.findById(id);
+        let thread = await Thread.findById(id)
+            .fill('firstPost')
+            .fill('pageTotal')
+            .fill('lastPost')
+            .fill('postCount');
         if (!thread) {
             res.status(404).send({ error: 'Thread not found.' });
             return;
@@ -320,8 +350,16 @@ router.post('/:id/pin', async(req, res) => {
 
 router.post('/:id/lock', async(req, res) => {
     let id = req.params.id;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
+        return;
+    }
     try {
-        let thread = await Thread.findById(id);
+        let thread = await Thread.findById(id)
+            .fill('firstPost')
+            .fill('pageTotal')
+            .fill('lastPost')
+            .fill('postCount');
         if (!thread) {
             res.status(404).send({ error: 'Thread not found.' });
             return;
@@ -342,8 +380,16 @@ router.post('/:id/lock', async(req, res) => {
 
 router.post('/:id/archive', async(req, res) => {
     let id = req.params.id;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
+        return;
+    }
     try {
-        let thread = await Thread.findById(id);
+        let thread = await Thread.findById(id)
+            .fill('firstPost')
+            .fill('pageTotal')
+            .fill('lastPost')
+            .fill('postCount');
         if (!thread) {
             res.status(404).send({ error: 'Thread not found.' });
             return;

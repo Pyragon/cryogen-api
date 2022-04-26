@@ -8,7 +8,7 @@ let schema = new Schema({
         required: true,
         autopopulate: true,
     },
-    message: {
+    content: {
         type: String,
         required: true,
     }

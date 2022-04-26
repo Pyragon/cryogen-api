@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const ObjectId = require('mongoose').Types.ObjectId;
 
+const { validate, validateUsers } = require('../../../utils/validate');
+
 const Message = require('../../../models/forums/private/Message');
 const User = require('../../../models/User');
 
@@ -139,26 +141,35 @@ router.post('/', async(req, res) => {
         return;
     }
 
-    if (!Array.isArray(recipients))
-        recipients = recipients.split(', ?');
+    if (!Array.isArray(recipients)) {
+        if (recipients.length === 0)
+            recipients = [];
+        else
+            recipients = recipients.split(', ?');
+    }
 
-    recipients = await Promise.all(recipients.map(async(to) => {
-        let recipient = await User.findOne({ username: to });
-        if (!recipient) {
-            res.status(400).send('Recipient ' + to + ' cannot be found');
-            failed = true;
-            return;
-        }
-        if (recipient._id.equals(res.user._id) && res.user.displayGroup.rights < 2) {
-            res.status(400).send('You cannot send a message to yourself.');
-            failed = true;
-            return;
-        }
-        //todo check privacy settings, etc.
-        //maybe continue even if they have author blocked, simply don't display it to them
-        //that way people can't find out who they have blocked by simply sending them a message and seeing if it works
-        return recipient;
-    }));
+    let failed = false;
+    if (recipients) {
+        recipients = await Promise.all(recipients.map(async(to) => {
+            let recipient = await User.findOne({ username: to });
+            if (!recipient) {
+                res.status(400).send({ error: 'Recipient ' + to + ' cannot be found' });
+                failed = true;
+                return;
+            }
+            if (recipient._id.equals(res.user._id) && res.user.displayGroup.rights < 2) {
+                res.status(400).send({ error: 'You cannot send a message to yourself.' });
+                failed = true;
+                return;
+            }
+            //todo check privacy settings, etc.
+            //maybe continue even if they have author blocked, simply don't display it to them
+            //that way people can't find out who they have blocked by simply sending them a message and seeing if it works
+            return recipient;
+        }));
+    }
+
+    if (failed) return;
 
     try {
         let message = new Message({

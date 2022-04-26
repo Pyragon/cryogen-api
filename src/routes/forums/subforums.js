@@ -33,7 +33,7 @@ async function getSubforumChildren(parent = null, res, req) {
             if (!subforum.permissions) return true;
             return subforum.permissions.checkCanSee(res.user);
         });
-        res.status(200).send(subforums);
+        res.status(200).send({ forums: subforums });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error getting categories.' });
@@ -65,7 +65,7 @@ router.get('/:id', async(req, res) => {
         res.status(403).send({ error: 'You do not have permission to view this subforum.' });
         return;
     }
-    res.status(200).send(subforum);
+    res.status(200).send({ forum: subforum });
 });
 
 router.get('/', async(req, res) => {

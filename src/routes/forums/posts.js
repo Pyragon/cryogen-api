@@ -347,7 +347,7 @@ router.get('/children/:id/:page', async(req, res) => {
             };
             return results;
         }));
-        res.status(200).send(posts);
+        res.status(200).send({ posts });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error getting posts.' });

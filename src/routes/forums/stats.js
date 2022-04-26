@@ -29,7 +29,7 @@ router.get('/', async(req, res) => {
             mostOnline
         };
 
-        res.status(200).send(stats);
+        res.status(200).send({ stats });
 
     } catch (err) {
         console.error(err);
@@ -40,7 +40,7 @@ router.get('/', async(req, res) => {
 router.get('/online', async(req, res) => {
     try {
         let online = await UserActivity.find({ updatedAt: { $gt: Date.now() - (1000 * 60 * 5) } });
-        res.status(200).send(online);
+        res.status(200).send({ users: online });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: err });

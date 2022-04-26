@@ -6,6 +6,7 @@ const User = require('../../../models/User');
 const Message = require('../../../models/forums/private/Message');
 const Thank = require('../../../models/forums/Thank');
 const MessageChain = require('../../../models/forums/private/MessageChain');
+const BBCodeManager = require('../../../utils/bbcode-manager');
 
 router.get('/chain/:chain/:page', async(req, res) => {
 
@@ -47,8 +48,12 @@ router.get('/chain/:chain/:page', async(req, res) => {
         let pageTotal = Math.ceil(await Message.countDocuments({ chain: chain }) / 5);
 
         messages = await Promise.all(messages.map(async message => {
+            let bbcodeManager = new BBCodeManager(message);
             return {
-                message,
+                message: {
+                    ...message._doc,
+                    formatted: await bbcodeManager.getFormattedPost(res.user),
+                },
                 thanks: await message.getThanks()
             }
         }));

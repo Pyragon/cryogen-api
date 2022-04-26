@@ -1,3 +1,5 @@
+const User = require('../models/User');
+
 function validateUsername(username) {
 
     return {
@@ -95,4 +97,21 @@ function validate(options, values) {
     return [true];
 }
 
-module.exports = { validate, validateUsername, validateEmail };
+async function validateUsers(users, self) {
+    let error;
+    users = await Promise.all(users.map(async name => {
+        let user = await User.findOne({ username: name });
+        if (!user) {
+            error = `User ${name} cannot be found`;
+            return;
+        }
+        if (self && user._id === self._id) {
+            error = 'You cannot include yourself.';
+            return;
+        }
+        return user;
+    }));
+    return [error, users];
+}
+
+module.exports = { validate, validateUsername, validateEmail, validateUsers };

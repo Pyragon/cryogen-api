@@ -47,7 +47,7 @@ router.post('/', async(req, res) => {
     }
     let chatboxMessage = new ChatboxMessage({
         author: res.user,
-        message
+        content: message,
     });
 
     try {
