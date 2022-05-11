@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
+const { validate } = require('../../utils/validate');
+
 const BBCode = require('../../models/forums/BBCode');
 const BBCodeManager = require('../../utils/bbcode-manager');
 
@@ -10,6 +12,32 @@ router.post('/', async(req, res) => {
         return;
     }
 
+    let validateOptions = {
+        name: {
+            required: true,
+            name: 'BBCode Name',
+            min: 2,
+            max: 20
+        },
+        description: {
+            required: true,
+            name: 'BBCode Description',
+            min: 2,
+            max: 100
+        },
+        matches: {
+            type: ['string'],
+            required: true,
+            name: 'BBCode Matches',
+            min: 1,
+        },
+        replace: {
+            required: true,
+            name: 'BBCode Replacement',
+            min: 1,
+        }
+    };
+
     let name = req.body.name;
     let description = req.body.description;
     let matches = req.body.matches;
@@ -17,8 +45,9 @@ router.post('/', async(req, res) => {
 
     try {
 
-        if (!name || !description || !matches || !replace) {
-            res.status(400).send({ error: 'All fields must be filled out.' });
+        let [validated, error] = validate(validateOptions, { name, description, matches, replace });
+        if (!validated) {
+            res.status(400).send({ error });
             return;
         }
 
@@ -29,9 +58,9 @@ router.post('/', async(req, res) => {
             replace,
         });
 
-        let savedBbcode = await bbcode.save();
+        await bbcode.save();
 
-        res.status(200).send({ bbcode: savedBbcode });
+        res.status(200).send({ bbcode });
 
     } catch (err) {
         console.error(err);
@@ -49,9 +78,15 @@ router.post('/refresh', async(req, res) => {
         return;
     }
 
-    BBCodeManager.refresh();
+    try {
 
-    res.status(200).send({ message: "BBCodes successfully refreshed." });
+        BBCodeManager.refresh();
+        res.status(200).send();
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error });
+    }
 });
 
 module.exports = router;

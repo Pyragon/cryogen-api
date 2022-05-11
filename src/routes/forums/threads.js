@@ -9,6 +9,7 @@ const Subforum = require('../../models/forums/Subforum');
 const User = require('../../models/User');
 const UserActivity = require('../../models/forums/UserActivity');
 const ThreadView = require('../../models/forums/ThreadView');
+const BBCodeManager = require('../../utils/bbcode-manager');
 const saveModLog = require('../../utils/mod-logs');
 
 router.get('/:id', async(req, res) => {
@@ -98,44 +99,72 @@ router.get('/:id/users', async(req, res) => {
     }
 });
 
-router.get('/children/:id', async(req, res) => {
-    let id = req.params.id;
-    if (!ObjectId.isValid(id)) {
-        res.status(400).send({ error: 'Invalid ID.' });
+router.get('/:id/posts/:page', async(req, res) => {
+    if (!res.loggedIn) {
+        res.status(403).send({ error: 'You must be logged in to view posts.' });
         return;
     }
 
-    if (!id) {
-        res.status(400).send({ error: 'No id provided.' });
-        return;
-    }
     try {
-        let subforum = await Subforum.findById(id);
-        if (!subforum) {
-            res.status(404).send({ error: 'Subforum not found.' });
+
+        let id = req.params.id;
+        let page = Number(req.params.page) || 1;
+
+        if (!ObjectId.isValid(id)) {
+            res.status(400).send({ error: 'Invalid ID.' });
             return;
         }
-        if (!subforum.permissions.checkCanSee(res.user)) {
-            res.status(403).send({ error: 'You do not have permission to view this subforum.' });
+
+        let thread = await Thread.findById(id);
+        if (!thread) {
+            res.status(404).send({ error: 'Thread not found.' });
             return;
         }
-        let threads = await Thread.find({ subforum: id, archived: false })
-            .limit(10)
-            .fill('postCount')
-            .fill('firstPost')
-            .fill('lastPost');
-        threads = threads.sort((a, b) => {
-            if (a.pinned && !b.pinned)
-                return -1;
-            else if (!a.pinned && b.pinned)
-                return 1;
-            else
-                return b.lastPost.createdAt - a.lastPost.createdAt;
-        });
-        res.status(200).send({ threads });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send({ error: 'Error getting subforum.' });
+        if (!thread.subforum.permissions.checkCanSee(res.user, thread)) {
+            res.status(403).send({ error: 'You do not have permission to view this thread.' });
+            return;
+        }
+        let posts = await Post.find({ thread: id })
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * 10)
+            .limit(10);
+
+        let counts = [],
+            received = [],
+            given = [],
+            levels = [];
+        let index = (page - 1) * 10;
+        let users = [];
+        posts = await Promise.all(posts.map(async(post) => {
+            let user = users[post.author._id] || await User.findOne({ _id: post.author._id });
+            users[post.author._id] = user;
+            if (!counts[user.username])
+                counts[user.username] = await user.getPostCount();
+            if (!received[user.username])
+                received[user.username] = await user.getThanksReceived();
+            if (!given[user.username])
+                given[user.username] = await user.getThanksGiven();
+            if (!levels[user.username])
+                levels[user.username] = await user.getTotalLevel();
+            let bbcodeManager = new BBCodeManager(post);
+            let results = {
+                index: index++,
+                ...post._doc,
+                formatted: await bbcodeManager.getFormattedPost(res.user),
+                postCount: counts[user.username],
+                thanksReceived: received[user.username],
+                thanksGiven: given[user.username],
+                thanks: await post.getThanks(),
+                totalLevel: levels[user.username],
+            };
+            return results;
+        }));
+        console.log(posts);
+        res.status(200).send({ posts });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: 'Error getting posts.' });
     }
 });
 
@@ -170,6 +199,29 @@ router.post('/', async(req, res) => {
 
         let poll;
 
+        let validateOptions = {
+            title: {
+                required: true,
+                type: 'string',
+                name: 'Title',
+                min: 5,
+                max: 50,
+            },
+            content: {
+                required: true,
+                type: 'string',
+                name: 'Content',
+                min: 4,
+                max: 1000,
+            }
+        }
+
+        let [validated, error] = validate(validateOptions, { title, content });
+        if (!validated) {
+            res.status(400).send({ error });
+            return;
+        }
+
         if (question) {
             let pollOptions = [];
             if (question.length < 5 || question.length > 50) {
@@ -203,16 +255,6 @@ router.post('/', async(req, res) => {
             poll = await poll.save();
         }
 
-        if (title.length < 5 || title.length > 50) {
-            res.status(400).send({ error: 'Title must be between 5 and 50 characters.' });
-            return;
-        }
-
-        if (content.length < 4 || content.length > 1000) {
-            res.status(400).send({ error: 'Content must be between 4 and 1000 characters.' });
-            return;
-        }
-
         let thread = new Thread({
             subforum,
             title,
@@ -220,7 +262,7 @@ router.post('/', async(req, res) => {
             poll,
         });
 
-        let savedThread = await thread.save();
+        await thread.save();
 
         if (poll) {
             poll.threadId = savedThread._id;
@@ -228,46 +270,18 @@ router.post('/', async(req, res) => {
         }
 
         let post = new Post({
-            thread: savedThread,
+            thread,
             author: res.user,
             content,
             subforum
         });
 
-        let savedPost = await post.save();
-        res.status(201).json({ thread: savedThread, post: savedPost });
+        await post.save();
+
+        res.status(201).json({ thread, post });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error creating thread.' });
-    }
-});
-
-router.post('/polls/removeVote', async(req, res) => {
-    let id = req.body.poll;
-    if (!ObjectId.isValid(id)) {
-        res.status(400).send({ error: 'Invalid ID.' });
-        return;
-    }
-    try {
-        let poll = await Poll.findById(id);
-        if (!poll) {
-            res.status(404).send({ error: 'Poll not found.' });
-            return;
-        }
-        if (!poll.allowVoteChange) {
-            res.status(403).send({ error: 'Changing your vote is not allowed on this poll.' });
-            return;
-        }
-        for (let i = 0; i < poll.votes.length; i++) {
-            let vote = poll.votes[i];
-            if (vote.user._id.equals(res.user._id))
-                poll.votes.splice(i, 1);
-        }
-        let saved = await poll.save();
-        res.status(200).send({ poll: saved });
-    } catch (err) {
-        console.error(err);
-        res.status(500).send({ error: 'Error removing vote.' });
     }
 });
 
@@ -278,6 +292,7 @@ router.post('/polls/vote', async(req, res) => {
         return;
     }
     let index = parseInt(req.body.index);
+    let remove = req.body.remove;
     try {
         let poll = await Poll.findById(id);
         if (!poll) {
@@ -294,10 +309,25 @@ router.post('/polls/vote', async(req, res) => {
             return;
         }
 
+        if (remove) {
+            if (!poll.allowVoteChange) {
+                res.status(403).send({ error: 'You have already voted and this poll does not allow you to change your vote.' });
+                return;
+            }
+            for (let i = 0; i < poll.votes.length; i++) {
+                let vote = poll.votes[i];
+                if (vote.user._id.equals(res.user._id))
+                    poll.votes.splice(i, 1);
+            }
+            await poll.save();
+            res.status(200).send({ poll });
+            return;
+        }
+
         for (let i = 0; i < poll.votes.length; i++) {
             let vote = poll.votes[i];
             if (vote.user._id === res.user._id) {
-                if (poll.allowVoteChange) {
+                if (!poll.allowVoteChange) {
                     res.status(403).send({ error: 'You have already voted and this poll does not allow you to change your vote.' });
                     return;
                 }
@@ -310,8 +340,8 @@ router.post('/polls/vote', async(req, res) => {
             index
         });
 
-        let saved = await poll.save();
-        res.status(200).send({ poll: saved });
+        await poll.save();
+        res.status(200).send({ poll });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error voting.', error: err });
@@ -339,9 +369,11 @@ router.post('/:id/pin', async(req, res) => {
             return;
         }
         thread.pinned = !thread.pinned;
-        let savedThread = await thread.save();
-        saveModLog(res.user, savedThread._id, 'thread', (thread.pinned ? 'Pinned' : 'Unpinned') + ' thread');
-        res.status(200).send({ thread: savedThread });
+        await thread.save();
+
+        saveModLog(res.user, thread._id, 'thread', (thread.pinned ? 'Pinned' : 'Unpinned') + ' thread');
+
+        res.status(200).send({ thread });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error locking thread.' });
@@ -369,9 +401,11 @@ router.post('/:id/lock', async(req, res) => {
             return;
         }
         thread.open = !thread.open;
-        let savedThread = await thread.save();
-        saveModLog(res.user, savedThread._id, 'thread', (thread.open ? 'Unlocked' : 'Locked') + ' thread');
-        res.status(200).send({ thread: savedThread });
+        await thread.save();
+
+        saveModLog(res.user, thread._id, 'thread', (thread.open ? 'Unlocked' : 'Locked') + ' thread');
+
+        res.status(200).send({ thread });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error locking thread.' });
@@ -399,9 +433,10 @@ router.post('/:id/archive', async(req, res) => {
             return;
         }
         thread.archived = !thread.archived;
-        let savedThread = await thread.save();
-        res.status(200).send({ thread: savedThread });
-        saveModLog(res.user, savedThread._id, 'thread', thread.archived ? 'Archived' : 'Restored');
+        await thread.save();
+        saveModLog(res.user, thread._id, 'thread', thread.archived ? 'Archived' : 'Restored' + ' thread');
+
+        res.status(200).send({ thread });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error archiving thread.' });

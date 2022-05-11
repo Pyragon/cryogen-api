@@ -4,8 +4,9 @@ const censor = require('../../utils/censor');
 const constants = require('../../utils/constants');
 const { formatMessage } = require('../../utils/utils');
 
+const { validate } = require('../../utils/validate');
+
 const ChatboxMessage = require('../../models/forums/ChatboxMessage');
-const User = require('../../models/User');
 
 router.get('/', async(req, res) => {
     try {
@@ -28,31 +29,45 @@ router.post('/', async(req, res) => {
         return;
     }
     let user = res.user;
-    //TODO - show error message in react
-    if (user.displayGroup._id.equals(constants['BANNED_USERGROUP'])) {
+
+    if (user.displayGroup._id.equals(constants['BANNED_USERGROUP']) || user.usergroups.includes(constants['BANNED_USERGROUP'])) {
         res.status(403).send({ error: 'You are banned from posting.' });
         return;
     }
+
     let chatboxMutedGroup = user.usergroups.find(group => group._id.equals(constants['CHATBOX_MUTED_USERGROUP']));
     if (chatboxMutedGroup) {
         res.status(403).send({ error: 'You are muted from the chatbox.' });
         return;
     }
-    //TODO - switch to use socketio
-    let message = formatMessage(req.body.message);
-    message = censor(message);
-    if (message.length < 4 || message.length > 200) {
-        res.status(400).send({ error: 'Message must be between 4 and 200 characters long.' });
+
+    let [validated, error] = validate({
+        message: {
+            required: true,
+            name: 'Chatbox Message',
+            min: 4,
+            max: 200
+        }
+    }, { message: req.body.message });
+
+    if (!validated) {
+        res.status(400).send({ error });
         return;
     }
+
+    let message = formatMessage(req.body.message);
+    message = censor(message);
+
     let chatboxMessage = new ChatboxMessage({
         author: res.user,
         content: message,
     });
 
     try {
-        let savedMessage = await chatboxMessage.save();
-        res.status(200).send({ message: savedMessage });
+
+        await chatboxMessage.save();
+        res.status(200).send({ message: chatboxMessage });
+
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: err });

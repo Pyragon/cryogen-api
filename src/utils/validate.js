@@ -1,26 +1,38 @@
 const User = require('../models/User');
 
-function validateUsername(username) {
+let validateUsername = {
+    type: 'string',
+    name: 'Username',
+    min: 3,
+    max: 12,
+    regexp: /^[a-zA-Z0-9_]+$/,
+    required: true,
+};
 
-    return {
-        type: 'string',
-        min: 3,
-        max: 12,
-        regexp: /^[a-zA-Z0-9_]+$/,
-        required: true,
-    };
-}
+let validatePassword = {
+    type: 'string',
+    name: 'Password',
+    min: 8,
+    max: 50,
+    required: true,
+};
 
-function validateEmail(email) {
-    //required will be false by default, can be extended when used to be true
-    return {
-        type: 'string',
-        min: 3,
-        max: 255,
-        regexp: /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
-        required: false,
-    };
-}
+let validateEmail = {
+    type: 'string',
+    name: 'Email',
+    min: 3,
+    max: 255,
+    regexp: /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
+    required: false,
+};
+
+let validatePost = {
+    type: 'string',
+    name: 'Post',
+    min: 4,
+    max: 1000,
+    required: true,
+};
 
 function validate(options, values) {
     if (typeof options !== 'object') return [false, 'Invalid options'];
@@ -114,4 +126,4 @@ async function validateUsers(users, self) {
     return [error, users];
 }
 
-module.exports = { validate, validateUsername, validateEmail, validateUsers };
+module.exports = { validate, validateUsername, validateEmail, validateUsers, validatePassword, validatePost };

@@ -8,6 +8,29 @@ const Thank = require('../../../models/forums/Thank');
 const MessageChain = require('../../../models/forums/private/MessageChain');
 const BBCodeManager = require('../../../utils/bbcode-manager');
 
+const { validate, validateUsers } = require('../../../utils/validate');
+
+let validateSubject = {
+    required: true,
+    name: 'Subject',
+    type: 'string',
+    min: 3,
+    max: 100,
+};
+
+let validateContent = {
+    required: true,
+    name: 'Body',
+    type: 'string',
+    min: 5,
+    max: 2000,
+};
+
+let validateOptionsForChain = {
+    subject: validateSubject,
+    body: validateContent,
+};
+
 router.get('/chain/:chain/:page', async(req, res) => {
 
     if (!res.loggedIn) {
@@ -78,40 +101,22 @@ router.post('/chain', async(req, res) => {
 
     try {
 
-        if (!recipients || !subject || !body) {
-            res.status(400).send('All fields must be filled out.');
-            return;
-        }
-
-        if (body.length < 5 || body.length > 2000) {
-            console.error('Body must be between 5 and 2000 characters.');
-            return;
-        }
-
         if (!Array.isArray(recipients))
             recipients = recipients.split(', ?');
 
-        let failed = false;
+        let [usersError, users] = await validateUsers(recipients, res.user);
+        if (usersError) {
+            res.status(400).send({ error: usersError });
+            return;
+        }
 
-        recipients = await Promise.all(recipients.map(async(to) => {
-            let recipient = await User.findOne({ username: to });
-            if (!recipient) {
-                res.status(400).send('Recipient ' + to + ' cannot be found');
-                failed = true;
-                return;
-            }
-            if (recipient._id.equals(res.user._id) && res.user.displayGroup.rights < 2) {
-                res.status(400).send('You cannot send a message to yourself.');
-                failed = true;
-                return;
-            }
-            //todo check privacy settings, etc.
-            //maybe continue even if they have author blocked, simply don't display it to them
-            //that way people can't find out who they have blocked by simply sending them a message and seeing if it works
-            return recipient;
-        }));
+        recipients = users;
 
-        if (failed) return;
+        let [validated, error] = validate(validateOptionsForChain, { subject, body });
+        if (!validated) {
+            res.status(400).send({ error });
+            return;
+        }
 
         let notifyUsersWarning = [...recipients];
 
@@ -122,18 +127,18 @@ router.post('/chain', async(req, res) => {
             notifyUsersWarning,
         });
 
-        let savedChain = await chain.save();
+        await chain.save();
 
         let message = new Message({
-            chain: savedChain,
+            chain,
             author: res.user,
             recipients,
             content: body,
         });
 
-        let savedMessage = await message.save();
+        await message.save();
 
-        res.status(200).send({ chain: savedChain, message: savedMessage });
+        res.status(200).send({ chain, message });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: err });
@@ -150,22 +155,12 @@ router.post('/', async(req, res) => {
 
     let chain = req.body.chain;
     let content = req.body.content;
+    if (!ObjectId.isValid(chain)) {
+        res.status(400).send({ error: 'Invalid chain id.' });
+        return;
+    }
 
     try {
-
-        if (!chain || !content) {
-            res.status(400).send({ error: 'All fields must be filled out.' });
-            return;
-        }
-        if (content.length < 5 || content.length > 2000) {
-            console.error({ error: 'Content must be between 5 and 2000 characters.' });
-            return;
-        }
-
-        if (!ObjectId.isValid(chain)) {
-            res.status(400).send({ error: 'Invalid chain id.' });
-            return;
-        }
 
         let messageChain = await MessageChain.findById(chain);
         if (!messageChain) {
@@ -177,6 +172,12 @@ router.post('/', async(req, res) => {
             return;
         }
 
+        let [validated, error] = validate({ content: validateContent }, { content });
+        if (!validated) {
+            res.status(400).send({ error });
+            return;
+        }
+
         let message = new Message({
             chain,
             author: res.user,
@@ -184,11 +185,11 @@ router.post('/', async(req, res) => {
             content
         });
 
-        let savedMessage = await message.save();
+        await message.save();
 
         let thanks = await message.getThanks();
 
-        res.status(200).send({ message: savedMessage, thanks });
+        res.status(200).send({ message, thanks });
     } catch (error) {
         console.error(error);
         res.status(500).send({ error: 'Error sending message.' });

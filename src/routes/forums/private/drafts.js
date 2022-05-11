@@ -7,6 +7,23 @@ const { validate, validateUsers } = require('../../../utils/validate');
 const Message = require('../../../models/forums/private/Message');
 const User = require('../../../models/User');
 
+let validateOptions = {
+    body: {
+        required: false,
+        type: 'string',
+        name: 'Message',
+        min: 5,
+        max: 2000,
+    },
+    subject: {
+        required: true,
+        type: 'string',
+        name: 'Subject',
+        min: 3,
+        max: 100
+    }
+};
+
 router.get('/:page', async(req, res) => {
     if (!res.loggedIn) {
         res.status(401).send({ error: 'You must be logged in to view your drafts.' });
@@ -59,26 +76,17 @@ router.put('/:id', async(req, res) => {
         if (!Array.isArray(recipients))
             recipients = recipients.split(', ?');
 
-        recipients = await Promise.all(recipients.map(async(to) => {
-            let recipient = await User.findOne({ username: to });
-            if (!recipient) {
-                res.status(400).send('Recipient ' + to + ' cannot be found');
-                failed = true;
-                return;
-            }
-            if (recipient._id.equals(res.user._id) && res.user.displayGroup.rights < 2) {
-                res.status(400).send('You cannot send a message to yourself.');
-                failed = true;
-                return;
-            }
-            //todo check privacy settings, etc.
-            //maybe continue even if they have author blocked, simply don't display it to them
-            //that way people can't find out who they have blocked by simply sending them a message and seeing if it works
-            return recipient;
-        }));
+        let [usersError, users] = await validateUsers(recipients, res.user);
+        if (usersError) {
+            res.status(400).send({ error: usersError });
+            return;
+        }
 
-        if (!req.body.subject) {
-            res.status(400).send({ error: 'A subject must be filled out!' });
+        recipients = users;
+
+        let [validated, error] = validate(validateOptions, { body: req.body.content, subject: req.body.subject });
+        if (!validated) {
+            res.status(400).send({ error });
             return;
         }
 
@@ -136,8 +144,10 @@ router.post('/', async(req, res) => {
     let recipients = req.body.recipients;
     let subject = req.body.subject;
     let body = req.body.body;
-    if (!subject) {
-        res.status(400).send({ error: 'A subject must be filled out!' });
+
+    let [validated, error] = validate(validateOptions, { body, subject });
+    if (!validated) {
+        res.status(400).send({ error });
         return;
     }
 
@@ -148,28 +158,13 @@ router.post('/', async(req, res) => {
             recipients = recipients.split(', ?');
     }
 
-    let failed = false;
-    if (recipients) {
-        recipients = await Promise.all(recipients.map(async(to) => {
-            let recipient = await User.findOne({ username: to });
-            if (!recipient) {
-                res.status(400).send({ error: 'Recipient ' + to + ' cannot be found' });
-                failed = true;
-                return;
-            }
-            if (recipient._id.equals(res.user._id) && res.user.displayGroup.rights < 2) {
-                res.status(400).send({ error: 'You cannot send a message to yourself.' });
-                failed = true;
-                return;
-            }
-            //todo check privacy settings, etc.
-            //maybe continue even if they have author blocked, simply don't display it to them
-            //that way people can't find out who they have blocked by simply sending them a message and seeing if it works
-            return recipient;
-        }));
+    let [usersError, users] = await validateUsers(recipients, res.user);
+    if (usersError) {
+        res.status(400).send({ error: usersError });
+        return;
     }
 
-    if (failed) return;
+    recipients = users;
 
     try {
         let message = new Message({
@@ -179,8 +174,8 @@ router.post('/', async(req, res) => {
             content: body
         });
 
-        let savedDraft = await message.save();
-        res.status(200).json({ message: savedDraft });
+        await message.save();
+        res.status(200).json({ message });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Unable to save draft' });

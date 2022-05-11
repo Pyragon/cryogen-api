@@ -9,39 +9,6 @@ const User = require('../../models/User');
 const Recovery = require('../../models/account/Recovery');
 const RecoveryQuestion = require('../../models/account/RecoveryQuestion');
 
-router.post('/test', async(req, res) => {
-    let username = req.body.username;
-    let password = req.body.password;
-
-    try {
-
-        let user = await User.findOne({ username: username });
-        if (!user) {
-            res.status(400).json({ error: 'User not found' });
-            return;
-        }
-
-        let hash = await bcrypt.hash(password, 10);
-        if (!hash) {
-            res.status(400).json({ error: 'Could not hash password' });
-            return;
-        }
-
-        if (!user.previousPasswords)
-            user.previousPasswords = [];
-
-        user.previousPasswords.push(hash);
-
-        await user.save();
-
-        res.status(200).json({ user });
-
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: error });
-    }
-});
-
 router.post('/', async(req, res) => {
 
     if (res.loggedIn) {

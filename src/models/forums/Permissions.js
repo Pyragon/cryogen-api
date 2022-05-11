@@ -6,10 +6,6 @@ let schema = new Schema({
         type: [String],
         required: true,
     },
-    canReadThreads: {
-        type: [String],
-        required: true,
-    },
     canReply: {
         type: [String],
         required: true,
@@ -32,6 +28,11 @@ let schema = new Schema({
     }
 });
 
+// -1 = anyone
+// -2 = anyone logged in
+// -3 = if you are author
+// -4 = if a staff member is author (really only used for checkCanSee)
+
 schema.methods.checkCanSee = function(user, thread) {
     if (this.canSee.includes('-1')) return true;
     if (this.canSee.includes('-2') && user) return true;
@@ -42,6 +43,16 @@ schema.methods.checkCanSee = function(user, thread) {
         if (this.canSee.includes(user.userGroups[i])) return true;
     if (this.canSee.includes('-3') && user !== null && thread && thread.author._id === user._id) return true;
     if (this.canSee.includes('-4') && user !== null && thread && thread.author.displayGroup.rights > 0) return true;
+    return false;
+};
+
+schema.methods.checkCanEdit = function(user, post) {
+    if (!user || !post) return false;
+    let data = this.canEdit;
+    if (data.includes('-3') && post.author._id === user._id) return true;
+    if (data.includes[user.displayGroup._id]) return true;
+    for (let i = 0; i < user.userGroups.length; i++)
+        if (data.includes(user.userGroups[i])) return true;
     return false;
 };
 
