@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const { v4: uuidv4 } = require('uuid');
 const { generateSecret, verify } = require('2fa-util');
 const { filter } = require('../utils/utils');
 
@@ -19,87 +20,93 @@ const MiscData = require('../models/MiscData');
 const router = express.Router();
 
 const { formatNameForProtocol, formatPlayerNameForDisplay } = require('../utils/utils');
+const { validateUsername, validatePassword, validate, validateEmail, validateRecaptcha } = require('../utils/validate');
 
 router.post('/', async(req, res) => {
-    //TODO - add request limiter to prevent brute force attacks
     let username = req.body.username;
     let password = req.body.password;
+    let email = req.body.email;
     let displayGroup = req.body.displayGroup;
     let usergroups = req.body.usergroups;
+    let token = req.body.token;
     let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-    if (!username || !password) {
-        res.status(400).send({ error: 'Missing username or password.' });
-        return;
-    }
-    if (username.length < 3 || username.length > 12) {
-        res.status(400).send({ error: 'Username must be between 3 and 12 characters.' });
-        return;
-    }
-    if (password.length < 8 || password.length > 50) {
-        res.status(400).send({ error: 'Password must be between 8 and 50 characters.' });
-        return;
-    }
     username = username.toLowerCase().replace(" ", "_");
-    //make sure there are no special characters in username
-    if (/[^a-zA-Z0-9_]/.test(username)) {
-        res.status(400).send({ error: 'Username can only contain letters, numbers, and underscores.' });
+
+    let recaptchaError = await validateRecaptcha(token);
+    if (recaptchaError) {
+        res.status(400).json({ error: recaptchaError });
         return;
     }
 
-    let user = await User.findOne({ username });
-    if (user) {
-        res.status(400).send({ error: 'Username already exists.' });
+    let validateOptions = {
+        username: validateUsername,
+        password: validatePassword,
+        email: validateEmail
+    };
+
+    let [validated, error] = validate(validateOptions, { username, password, email });
+    if (!validated) {
+        res.status(400).json({ error });
         return;
     }
 
-    if (displayGroup) {
-        displayGroup = await Usergroup.findOne({ _id: displayGroup });
-        if (!displayGroup) {
-            res.status(400).send({ error: 'Invalid display group.' });
+    try {
+
+        let user = await User.findOne({ username });
+        if (user) {
+            res.status(400).send({ error: 'Username already exists.' });
             return;
         }
-    } else
-        displayGroup = constants['REGULAR_USERGROUP'];
 
-    if (usergroups) {
-        if (!usergroups.includes(constants['REGULAR_USERGROUP']))
-            usergroups.push(constants['REGULAR_USERGROUP']);
-        for (let i = 0; i < usergroups.length; i++) {
-            let group = await Usergroup.findOne({ _id: usergroups[i] });
-            if (!group) {
-                res.status(400).send({ error: 'Invalid usergroup.' });
+        if (displayGroup) {
+            displayGroup = await Usergroup.findOne({ _id: displayGroup });
+            if (!displayGroup) {
+                res.status(400).send({ error: 'Invalid display group.' });
                 return;
             }
-            usergroups[i] = group;
+        } else
+            displayGroup = constants['REGULAR_USERGROUP'];
+
+        if (usergroups) {
+            if (!usergroups.includes(constants['REGULAR_USERGROUP']) && displayGroup != constants['REGULAR_USERGROUP'])
+                usergroups.push(constants['REGULAR_USERGROUP']);
+            for (let i = 0; i < usergroups.length; i++) {
+                let group = await Usergroup.findOne({ _id: usergroups[i] });
+                if (!group) {
+                    res.status(400).send({ error: 'Invalid usergroup.' });
+                    return;
+                }
+                usergroups[i] = group;
+            }
         }
-    }
 
 
-    let displayName = formatPlayerNameForDisplay(username);
-    let hash = await bcrypt.hash(password, 10);
-    let sessionId = crypto.randomBytes(16).toString('base64');
+        let displayName = formatPlayerNameForDisplay(username);
+        let hash = await bcrypt.hash(password, 10);
+        let sessionId = uuidv4();
 
-    user = new User({
-        username,
-        displayName,
-        hash,
-        displayGroup,
-        usergroups,
-        creationIp: ip
-    });
-    try {
-        let savedUser = await user.save();
+        user = new User({
+            username,
+            email,
+            displayName,
+            hash,
+            displayGroup,
+            usergroups,
+            creationIp: ip
+        });
+
+        await user.save();
 
         let session = new Session({
-            user: savedUser,
+            user,
             sessionId,
             expires: Date.now() + 1000 * 60 * 30,
         });
 
         await session.save();
 
-        res.status(201).json({ success: true, sessionId, user: savedUser });
+        res.status(201).json({ success: true, sessionId, user });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error creating user.' });
@@ -107,8 +114,8 @@ router.post('/', async(req, res) => {
 });
 
 router.delete('/:id', async(req, res) => {
-    if (!res.loggedIn || res.loggedIn.rights < 2) {
-        res.status(403).send({ error: 'Insufficient privileges.' });
+    if (!res.loggedIn || res.user.displayGroup.rights < 2) {
+        res.status(403).send({ error: 'Insufficient permissions.' });
         return;
     }
     let id = req.params.id;
@@ -231,15 +238,17 @@ router.post('/activity', async(req, res) => {
             user: res.user,
             activity: activity,
             type,
-            id
+            activityId: id
         });
     } else {
         userActivity.activity = activity;
+        userActivity.type = type;
+        userActivity.activityId = id;
         userActivity.updatedAt = new Date();
     }
     try {
-        let savedActivity = await userActivity.save();
-        res.status(200).json(savedActivity);
+        await userActivity.save();
+        res.status(200).json({ activity: userActivity });
 
         let totalOnline = await UserActivity.countDocuments({
             updatedAt: {

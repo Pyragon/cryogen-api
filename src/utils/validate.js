@@ -1,4 +1,7 @@
 const User = require('../models/User');
+const axios = require('axios');
+
+const props = require('../../data/props.json');
 
 let validateUsername = {
     type: 'string',
@@ -126,4 +129,16 @@ async function validateUsers(users, self) {
     return [error, users];
 }
 
-module.exports = { validate, validateUsername, validateEmail, validateUsers, validatePassword, validatePost };
+async function validateRecaptcha(token) {
+
+    let response = await axios.post(`https://www.google.com/recaptcha/api/siteverify?secret=${props.recaptchaSecret}&response=${token}`, {}, {
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+    });
+    if (!response.data.success)
+        return 'Recaptcha failed!';
+    return false;
+}
+
+module.exports = { validate, validateUsername, validateEmail, validateUsers, validatePassword, validatePost, validateRecaptcha };
