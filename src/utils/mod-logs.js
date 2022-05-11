@@ -10,6 +10,6 @@ module.exports = function(user, id, type, action) {
     try {
         log.save();
     } catch (err) {
-        console.log(err);
+        console.error(err);
     }
 };

@@ -16,7 +16,7 @@ let schema = new Schema({
         type: String,
         required: true,
     },
-    id: {
+    activityId: {
         type: String,
         required: false
     }

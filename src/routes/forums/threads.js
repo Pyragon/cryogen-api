@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ObjectId = require('mongoose').Types.ObjectId;
+const { validate } = require('../../utils/validate');
 
 const Thread = require('../../models/forums/Thread');
 const Post = require('../../models/forums/Post');
@@ -87,7 +88,7 @@ router.get('/:id/users', async(req, res) => {
         }
         let users = await UserActivity.find({
             type: 'thread',
-            id: id,
+            activityId: id,
             updatedAt: {
                 $gte: new Date(Date.now() - (5 * 60 * 1000))
             }
@@ -159,7 +160,6 @@ router.get('/:id/posts/:page', async(req, res) => {
             };
             return results;
         }));
-        console.log(posts);
         res.status(200).send({ posts });
 
     } catch (error) {
