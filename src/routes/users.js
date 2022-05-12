@@ -192,7 +192,7 @@ router.post('/auth', async(req, res) => {
             res.status(401).send({ error: 'Invalid username or password.' });
             return;
         }
-        let sessionId = crypto.randomBytes(16).toString('base64');
+        let sessionId = uuidv4();
 
         let expires = Date.now();
         if (remember)
