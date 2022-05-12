@@ -27,7 +27,7 @@ let schema = new Schema({
         type: String,
         required: false,
     }
-});
+}, { timestamps: true });
 
 const model = mongoose.model('Usergroup', schema);
 

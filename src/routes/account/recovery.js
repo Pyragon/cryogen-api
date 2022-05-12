@@ -2,12 +2,60 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const ObjectId = require('mongodb').ObjectId;
+const { v4: uuidv4 } = require('uuid');
 const { sendRecoveryEmail } = require('../../utils/email');
 const { validate, validateUsername, validateEmail } = require('../../utils/validate');
 
 const User = require('../../models/User');
 const Recovery = require('../../models/account/Recovery');
 const RecoveryQuestion = require('../../models/account/RecoveryQuestion');
+const RecoveryComment = require('../../models/account/RecoveryComment');
+
+router.get('/view/:viewKey', async(req, res) => {
+
+    let viewKey = req.params.viewKey;
+
+    try {
+
+        let recovery = await Recovery.findOne({ viewKey });
+        if (!recovery) {
+            res.status(400).json({ error: 'Recovery not found' });
+            return;
+        }
+
+        res.status(200).json({ status: recovery.status });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error });
+    }
+
+});
+
+router.get('/view/staff/:id', async(req, res) => {
+    if (!res.loggedIn || res.user.displayGroup.rights < 2) {
+        res.status(401).json({ error: 'Insufficient permissions.' });
+        return;
+    }
+
+    let id = req.params.id;
+
+    try {
+
+        let recovery = await Recovery.findOne({ viewKey: id });
+        if (!recovery) {
+            res.status(400).json({ error: 'Recovery not found' });
+            return;
+        }
+
+        return { recovery }
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error });
+    }
+});
 
 router.post('/', async(req, res) => {
 
@@ -29,7 +77,9 @@ router.post('/', async(req, res) => {
 
     let validateOptions = {
         username: validateUsername,
-        email: validateEmail,
+        email: {
+
+        },
         discord: {
             type: 'string',
             name: 'Discord',
@@ -81,7 +131,6 @@ router.post('/', async(req, res) => {
     });
 
     if (!validated) {
-        console.log('Found error:', error);
         res.status(400).json({ error });
         return;
     }
@@ -98,13 +147,13 @@ router.post('/', async(req, res) => {
 
         let emailKey;
         if (user.email && user.email.toLowerCase() === email.toLowerCase()) {
-            emailKey = crypto.randomBytes(16).toString('base64');
+            emailKey = uuidv4();
             //send email
         }
 
         let discordKey;
         if (user.discord && user.discord.toLowerCase() === discord.toLowerCase()) {
-            discordKey = crypto.randomBytes(16).toString('base64');
+            discordKey = uuidv4();
             //send discord message
         }
 
@@ -160,7 +209,7 @@ router.post('/', async(req, res) => {
             questionResults.push(false);
         }
 
-        let viewKey = crypto.randomBytes(16).toString('base64');
+        let viewKey = uuidv4();
 
         let recovery = new Recovery({
             user,
@@ -179,7 +228,7 @@ router.post('/', async(req, res) => {
 
         await recovery.save();
 
-        res.status(400).send({ error: 'Test error notif' });
+        res.status(200).send({ viewKey });
 
 
     } catch (error) {
@@ -229,10 +278,61 @@ router.get('/questions', async(req, res) => {
 
         res.status(200).send({ questions });
 
-
     } catch (error) {
         console.error(error);
         res.status(500).send({ error: 'Error getting recovery questions.' });
+    }
+});
+
+router.post('/:id/comment', async(req, res) => {
+    if (!res.loggedIn || res.user.displayGroup.rights < 2) {
+        res.status(401).send({ error: 'Insufficient permissions.' });
+        return;
+    }
+
+    let id = req.params.id;
+    let comment = req.body.comment;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
+        return;
+    }
+
+    try {
+
+        let recovery = await Recovery.findById(id);
+        if (!recovery) {
+            res.status(404).send({ error: 'Recovery not found.' });
+            return;
+        }
+
+        let validateOptions = {
+            comment: {
+                type: 'string',
+                name: 'Comment',
+                required: true,
+                min: 3,
+                max: 500,
+            }
+        };
+
+        let [validated, error] = validate(validateOptions, { comment });
+        if (!validated) {
+            res.status(400).send({ error });
+            return;
+        }
+
+        let recoveryComment = new RecoveryComment({
+            author: res.user,
+            comment,
+        });
+
+        await recoveryComment.save();
+
+        res.status(200).send({ comment: recoveryComment });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: 'Error adding comment.' });
     }
 });
 

@@ -8,6 +8,12 @@ let schema = new Schema({
         required: true,
         autopopulate: true,
     },
+    status: {
+        required: false,
+        type: String,
+        enum: ['PENDING', 'APPROVED', 'DENIED'],
+        default: 'PENDING',
+    },
     ip: {
         type: String,
         required: true,
@@ -51,6 +57,15 @@ let schema = new Schema({
     viewKey: {
         type: String,
         required: true,
+    },
+    recoveredPassword: {
+        type: String,
+        required: false,
+    },
+    comments: {
+        type: [{ type: Schema.Types.ObjectId, ref: 'RecoveryComment' }],
+        required: false,
+        autopopulate: true,
     }
 }, { timestamps: true });
 

@@ -10,7 +10,7 @@ router.get('/', async(req, res) => {
     }
 
     try {
-        const usergroups = await Usergroup.find();
+        let usergroups = await Usergroup.find();
 
         res.status(200).send({ usergroups });
 
@@ -20,6 +20,31 @@ router.get('/', async(req, res) => {
     }
 
 
+});
+
+router.get('/:page', async(req, res) => {
+    if (!res.loggedIn || res.user.displayGroup.rights < 2) {
+        res.status(403).send({ error: 'Insufficient permissions' });
+        return;
+    }
+
+    let id = Number(req.params.page) || 1;
+
+    try {
+
+        let usergroups = await Usergroup.find()
+            .sort({ createdAt: 1 })
+            .skip((id - 1) * 10)
+            .limit(10);
+
+        let pageTotal = Math.ceil(await Usergroup.countDocuments() / 10);
+
+        res.status(200).send({ usergroups, pageTotal });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error });
+    }
 });
 
 router.post('/', async(req, res) => {
@@ -48,11 +73,30 @@ router.post('/', async(req, res) => {
     try {
 
         await usergroup.save();
-        res.status(200).send({ usergroups });
+        res.status(200).send({ usergroup });
 
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: err });
+    }
+});
+
+router.delete('/:id', async(req, res) => {
+    if (!res.loggedIn || res.user.displayGroup.rights < 2) {
+        res.status(403).send({ error: 'Insufficient permissions' });
+        return;
+    }
+
+    let id = req.params.id;
+
+    try {
+
+        await Usergroup.deleteOne({ _id: id });
+        res.status(200).send();
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error });
     }
 });
 

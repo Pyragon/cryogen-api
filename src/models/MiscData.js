@@ -10,7 +10,7 @@ let schema = new Schema({
         type: String,
         required: true,
     }
-});
+}, { timestamps: true });
 
 const MiscData = mongoose.model('MiscData', schema);
 

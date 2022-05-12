@@ -23,12 +23,8 @@ const schema = new Schema({
     xp: {
         type: Array,
         required: true,
-    },
-    timestamps: {
-        type: Array,
-        required: true,
     }
-});
+}, { timestamps: true });
 
 schema.plugin(require('mongoose-autopopulate'));
 

@@ -16,7 +16,7 @@ router.get('/:page', async(req, res) => {
     try {
 
         let permissions = await Permissions.find({})
-            .sort({ createdAt: 1 })
+            .sort({ createdAt: -1 })
             .skip((page - 1) * 10)
             .limit(10)
             .fill('usergroups');
