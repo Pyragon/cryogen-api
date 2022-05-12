@@ -1,7 +1,16 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+const ObjectId = mongoose.Types.ObjectId;
+
+const Usergroup = require('./Usergroup');
+
 let schema = new Schema({
+    name: {
+        type: String,
+        required: false,
+        default: 'Default Perm'
+    },
     canSee: {
         type: [String],
         required: true,
@@ -26,12 +35,43 @@ let schema = new Schema({
         type: [String],
         required: true,
     }
+}, {
+    timestamps: true,
+    toJSON: {
+        virtuals: true
+    }
 });
 
 // -1 = anyone
 // -2 = anyone logged in
 // -3 = if you are author
 // -4 = if a staff member is author (really only used for checkCanSee)
+
+schema.fill('usergroups', async function(callback) {
+    try {
+        let groups = {};
+        let toCheck = [this.canSee, this.canReply, this.canEdit, this.canCreateThreads, this.canModerate, this.canCreatePolls];
+        for (let permissions of toCheck) {
+            for (let id of permissions) {
+                if (!ObjectId.isValid(id) || groups[id]) continue;
+
+                let group = await Usergroup.findById(id);
+                if (!group) {
+                    console.error(`Invalid usergroup ${id} in permissions ${this._id}`);
+                    continue;
+                }
+
+                groups[id] = group;
+
+            }
+        }
+
+        callback(null, groups);
+    } catch (error) {
+        console.log(error);
+        callback(null, {});
+    }
+});
 
 schema.methods.checkCanSee = function(user, thread) {
     if (this.canSee.includes('-1')) return true;
