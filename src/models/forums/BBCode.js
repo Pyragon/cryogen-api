@@ -17,6 +17,10 @@ const schema = new Schema({
     replace: {
         type: String,
         required: true,
+    },
+    example: {
+        type: String,
+        required: true,
     }
 }, { timestamps: true });
 

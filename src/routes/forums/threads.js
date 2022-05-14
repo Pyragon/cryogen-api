@@ -12,11 +12,12 @@ const UserActivity = require('../../models/forums/UserActivity');
 const ThreadView = require('../../models/forums/ThreadView');
 const BBCodeManager = require('../../utils/bbcode-manager');
 const saveModLog = require('../../utils/mod-logs');
+const constants = require('../../utils/constants');
 
 router.get('/:id', async(req, res) => {
     let id = req.params.id;
     if (id == 'news') {
-        let threads = await Thread.find({ "subforum": ['61dfccd67065e8ce789105d9'], archived: false })
+        let threads = await Thread.find({ "subforum": [constants['ANNOUNCEMENTS_SUBFORUM']], archived: false })
             .sort({ createdAt: -1 })
             .limit(5)
             .fill('firstPost');
