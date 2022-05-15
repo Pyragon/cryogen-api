@@ -112,8 +112,8 @@ router.post('/chain', async(req, res) => {
 
         recipients = users;
 
-        let [validated, error] = validate(validateOptionsForChain, { subject, body });
-        if (!validated) {
+        let error = validate(validateOptionsForChain, { subject, body });
+        if (error) {
             res.status(400).send({ error });
             return;
         }
@@ -172,8 +172,8 @@ router.post('/', async(req, res) => {
             return;
         }
 
-        let [validated, error] = validate({ content: validateContent }, { content });
-        if (!validated) {
+        let error = validate({ content: validateContent }, { content });
+        if (error) {
             res.status(400).send({ error });
             return;
         }

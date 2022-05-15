@@ -64,8 +64,8 @@ router.put('/:id', async(req, res) => {
 
     let { name, rights, colour, imageBefore, imageAfter, title } = req.body;
 
-    let [validated, error] = validate(validateOptions, { name, rights, colour, imageBefore, imageAfter, title });
-    if (!validated) {
+    let error = validate(validateOptions, { name, rights, colour, imageBefore, imageAfter, title });
+    if (error) {
         res.status(400).send({ error });
         return;
     }
@@ -111,8 +111,8 @@ router.post('/', async(req, res) => {
 
     let { name, rights, colour, imageBefore, imageAfter, title } = req.body;
 
-    let [validated, error] = validate(validateOptions, { name, rights, colour, imageBefore, imageAfter, title });
-    if (!validated) {
+    let error = validate(validateOptions, { name, rights, colour, imageBefore, imageAfter, title });
+    if (error) {
         res.status(400).send({ error });
         return;
     }

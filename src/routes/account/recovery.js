@@ -120,7 +120,7 @@ router.post('/', async(req, res) => {
         }
     }
 
-    let [validated, error] = validate(validateOptions, {
+    let error = validate(validateOptions, {
         username,
         email,
         discord,
@@ -130,7 +130,7 @@ router.post('/', async(req, res) => {
         passwords,
     });
 
-    if (!validated) {
+    if (error) {
         res.status(400).json({ error });
         return;
     }
@@ -315,8 +315,8 @@ router.post('/:id/comment', async(req, res) => {
             }
         };
 
-        let [validated, error] = validate(validateOptions, { comment });
-        if (!validated) {
+        let error = validate(validateOptions, { comment });
+        if (error) {
             res.status(400).send({ error });
             return;
         }

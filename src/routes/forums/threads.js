@@ -217,8 +217,8 @@ router.post('/', async(req, res) => {
             }
         }
 
-        let [validated, error] = validate(validateOptions, { title, content });
-        if (!validated) {
+        let error = validate(validateOptions, { title, content });
+        if (error) {
             res.status(400).send({ error });
             return;
         }

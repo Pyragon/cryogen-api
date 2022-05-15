@@ -66,8 +66,8 @@ router.put('/:id', async(req, res) => {
 
     try {
 
-        let [validated, error] = validate(validateOptions, { name, description, matches, replace, example });
-        if (!validated) {
+        let error = validate(validateOptions, { name, description, matches, replace, example });
+        if (error) {
             res.status(400).send({ error });
             return;
         }
@@ -109,8 +109,8 @@ router.post('/', async(req, res) => {
 
     try {
 
-        let [validated, error] = validate(validateOptions, { name, description, matches, replace, example });
-        if (!validated) {
+        let error = validate(validateOptions, { name, description, matches, replace, example });
+        if (error) {
             res.status(400).send({ error });
             return;
         }

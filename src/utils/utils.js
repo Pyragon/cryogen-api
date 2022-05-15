@@ -22,6 +22,17 @@ let formatDate = (date, format = 'MMMM Do, YYYY h:mm:ss a') => {
     return moment(date).format(format);
 };
 
+let formatUser = async(user) => {
+    return {
+        ...user._doc,
+        postCount: await user.getPostCount(),
+        threadsCreated: await user.getThreadsCreated(),
+        thanksReceived: await user.getThanksReceived(),
+        thanksGiven: await user.getThanksGiven(),
+        totalLevel: await user.getTotalLevel(),
+    };
+}
+
 const matchHtmlRegExp = /['&<>]/
 
 function escapeHtml(string) {
@@ -76,4 +87,4 @@ async function filter(arr, callback) {
     return (await Promise.all(arr.map(async item => (await callback(item)) ? item : fail))).filter(i => i !== fail)
 }
 
-module.exports = { formatNameForProtocol, formatMessage, formatPlayerNameForDisplay, escapeHtml, formatDate, filter };
+module.exports = { formatNameForProtocol, formatMessage, formatPlayerNameForDisplay, escapeHtml, formatDate, filter, formatUser };
