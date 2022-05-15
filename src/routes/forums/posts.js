@@ -70,9 +70,9 @@ router.post('/', async(req, res) => {
         return;
     }
 
-    let [validated, error] = validate(validateContent, { content });
+    let error = validate(validateContent, { content });
 
-    if (!validated) {
+    if (error) {
         res.status(400).send({ error });
         return;
     }
@@ -163,9 +163,9 @@ router.put('/:id', async(req, res) => {
         return;
     }
 
-    let [validated, error] = validate(validateContent, { content });
+    let error = validate(validateContent, { content });
 
-    if (!validated) {
+    if (error) {
         res.status(400).send({ error });
         return;
     }

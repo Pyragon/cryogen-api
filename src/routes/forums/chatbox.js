@@ -41,7 +41,7 @@ router.post('/', async(req, res) => {
         return;
     }
 
-    let [validated, error] = validate({
+    let error = validate({
         message: {
             required: true,
             name: 'Chatbox Message',
@@ -50,7 +50,7 @@ router.post('/', async(req, res) => {
         }
     }, { message: req.body.message });
 
-    if (!validated) {
+    if (error) {
         res.status(400).send({ error });
         return;
     }

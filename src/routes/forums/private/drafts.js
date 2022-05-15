@@ -84,8 +84,8 @@ router.put('/:id', async(req, res) => {
 
         recipients = users;
 
-        let [validated, error] = validate(validateOptions, { body: req.body.content, subject: req.body.subject });
-        if (!validated) {
+        let error = validate(validateOptions, { body: req.body.content, subject: req.body.subject });
+        if (error) {
             res.status(400).send({ error });
             return;
         }
@@ -145,8 +145,8 @@ router.post('/', async(req, res) => {
     let subject = req.body.subject;
     let body = req.body.body;
 
-    let [validated, error] = validate(validateOptions, { body, subject });
-    if (!validated) {
+    let error = validate(validateOptions, { body, subject });
+    if (error) {
         res.status(400).send({ error });
         return;
     }
