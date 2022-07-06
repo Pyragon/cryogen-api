@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose-fill');
 const Schema = mongoose.Schema;
 
 const ObjectId = mongoose.Types.ObjectId;
@@ -79,8 +79,8 @@ schema.methods.checkCanSee = function(user, thread) {
     if (!user) return false;
     if (this.canSee.includes[user.displayGroup._id]) return true;
     //see if canSee includes any values from user.userGroup
-    for (let i = 0; i < user.userGroups.length; i++)
-        if (this.canSee.includes(user.userGroups[i])) return true;
+    for (let i = 0; i < user.usergroups.length; i++)
+        if (this.canSee.includes(user.usergroups[i]._id)) return true;
     if (this.canSee.includes('-3') && user !== null && thread && thread.author._id === user._id) return true;
     if (this.canSee.includes('-4') && user !== null && thread && thread.author.displayGroup.rights > 0) return true;
     return false;
@@ -91,8 +91,9 @@ schema.methods.checkCanEdit = function(user, post) {
     let data = this.canEdit;
     if (data.includes('-3') && post.author._id === user._id) return true;
     if (data.includes[user.displayGroup._id]) return true;
-    for (let i = 0; i < user.userGroups.length; i++)
-        if (data.includes(user.userGroups[i])) return true;
+    if (user.usergroups)
+        for (let i = 0; i < user.usergroups.length; i++)
+            if (data.includes(user.usergroups[i]._id)) return true;
     return false;
 };
 
@@ -102,9 +103,9 @@ schema.methods.checkCanCreateThreads = function(user) {
     if (data.includes('-1') || data.includes('-2')) return true;
     for (let id of data)
         if (user.displayGroup._id.equals(id)) return true;
-    if (user.userGroups)
-        for (let i = 0; i < user.userGroups.length; i++)
-            if (data.includes(user.userGroups[i])) return true;
+    if (user.usergroups)
+        for (let i = 0; i < user.usergroups.length; i++)
+            if (data.includes(user.usergroups[i]._id)) return true;
     return false;
 };
 
@@ -114,9 +115,9 @@ schema.methods.checkCanReply = function(user, thread) {
     if (data.includes('-1') || data.includes('-2')) return true;
     for (let id of data)
         if (user.displayGroup._id.equals(id)) return true;
-    if (user.userGroups)
-        for (let i = 0; i < user.userGroups.length; i++)
-            if (data.includes(user.userGroups[i])) return true;
+    if (user.usergroups)
+        for (let i = 0; i < user.usergroups.length; i++)
+            if (data.includes(user.usergroups[i]._id)) return true;
     if (data.includes('-3') && thread.author._id === user._id) return true;
     return false;
 };
@@ -126,9 +127,9 @@ schema.methods.checkCanModerate = function(user) {
     let data = this.canModerate;
     for (let id of data)
         if (user.displayGroup._id.equals(id)) return true;
-    if (user.userGroups)
+    if (user.usergroups)
         for (let i = 0; i < user.usergroups.length; i++)
-            if (data.includes(user.usergroups[i])) return true;
+            if (data.includes(user.usergroups[i]._id)) return true;
     return false;
 }
 
