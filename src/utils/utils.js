@@ -6,7 +6,7 @@ let formatNameForProtocol = (name) => {
 
 let formatPlayerNameForDisplay = (name) => {
     //replace all characters that are not after a space with lowercase
-    let formattedName = name.replace(/[^\s]/g, c => c.toLowerCase());
+    let formattedName = name.replace(/[^\s]/g, c => c.toLowerCase()).replace('_', ' ');
     formattedName = formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
     return formattedName;
 }
