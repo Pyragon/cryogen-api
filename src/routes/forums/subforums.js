@@ -96,7 +96,7 @@ router.get('/:id/:page', async(req, res) => {
         }
 
         let threads = await Thread.find({ subforum: id, archived: false })
-            .sort({ createdAt: -1 })
+            .sort({ pinned: -1, createdAt: -1 })
             .skip((page - 1) * 10)
             .limit(10)
             .fill('postCount')
@@ -180,45 +180,6 @@ router.post('/', async(req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: err });
-    }
-});
-
-router.get('/:id/threads/:page', async(req, res) => {
-
-    let id = req.params.id;
-    let page = Number(req.params.page) || 1;
-
-    if (!ObjectId.isValid(id)) {
-        res.status(400).send({ error: 'Invalid id.' });
-        return;
-    }
-
-    try {
-
-        let subforum = await Subforum.findById(id)
-            .fill('extraData');
-        if (!subforum) {
-            res.status(404).send({ error: 'Subforum not found.' });
-            return;
-        }
-        if (subforum.permissions && !subforum.permissions.checkCanSee(res.user)) {
-            res.status(403).send({ error: 'Subforum not found.' });
-            return;
-        }
-
-        let threads = await Thread.find({ subforum: id, archived: false })
-            .sort({ createdAt: -1 })
-            .skip((page - 1) * 10)
-            .limit(10)
-            .fill('postCount')
-            .fill('firstPost')
-            .fill('lastPost');
-
-        res.status(200).send({ threads });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).send({ error: 'Error loading subforum threads.' });
     }
 });
 
