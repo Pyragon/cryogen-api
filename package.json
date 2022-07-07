@@ -4,7 +4,8 @@
     "description": "API for the Cryogen website",
     "main": "src/main.js",
     "scripts": {
-        "start": "nodemon src/main.js"
+        "start": "nodemon src/main.js",
+        "setup": "node src/utils/website-setup.js"
     },
     "repository": {
         "type": "git",
@@ -34,6 +35,8 @@
         "mongoose-autopopulate": "^0.16.0",
         "mongoose-fill": "^1.7.0",
         "nodemon": "^2.0.15",
+        "readline-promise": "^1.0.5",
+        "readline-sync": "^1.4.10",
         "uuid": "^8.3.2",
         "walk": "^2.3.15"
     }
