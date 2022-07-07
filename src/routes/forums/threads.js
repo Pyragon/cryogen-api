@@ -127,7 +127,7 @@ router.get('/:id/posts/:page', async(req, res) => {
             return;
         }
         let posts = await Post.find({ thread: id })
-            .sort({ createdAt: -1 })
+            .sort({ createdAt: 1 })
             .skip((page - 1) * 10)
             .limit(10);
 
