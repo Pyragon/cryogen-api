@@ -76,10 +76,10 @@ router.post('/', async(req, res) => {
 
     let admin = req.body.admin;
 
-    // if(admin && (!res.user || res.user.displayGroup.rights < 2)) {
-    //     res.status(403).send({ error: 'Insuficient permissions.' });
-    //     return;
-    // }
+    if (admin && (!res.user || res.user.displayGroup.rights < 2)) {
+        res.status(403).send({ error: 'Insuficient permissions.' });
+        return;
+    }
 
     username = username.toLowerCase().replace(" ", "_");
 
@@ -369,6 +369,7 @@ router.post('/auth', async(req, res) => {
     let otp = req.body.otp;
 
     username = formatNameForProtocol(username);
+    console.log('attempting to auth:', username);
     try {
 
         let user = await User.findOne({ username });
