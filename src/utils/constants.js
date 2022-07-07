@@ -1,12 +1,13 @@
 const Permissions = require('../models/forums/Permissions');
 
 module.exports = {
-    ANNOUNCEMENTS_SUBFORUM: '627c6c80a6a1a4b961a39d01',
-    BANNED_USERGROUP: '627d6151bfceaef7c5871acc',
-    CHATBOX_MUTED_USERGROUP: '627d615f19fb5fddff7d50ee',
-    REGULAR_USERGROUP: '627d616bd486d5d754f0f7ec',
-    ADMIN_USERGROUP: '627d617e422bd9a21e842078',
-    DEFAULT_PERMISSIONS: '627c6c00802f439500e295c0',
+
+    REGULAR_USERGROUP: '62c5cf9d72e005b64b48835d',
+    BANNED_USERGROUP: '62c5cf9d72e005b64b488359',
+    CHATBOX_MUTED_USERGROUP: '62c5cf9d72e005b64b48835b',
+    ADMIN_USERGROUP: '62c5cf9d72e005b64b488357',
+    ANNOUNCEMENTS_SUBFORUM: '62c5cf9d72e005b64b488367',
+    DEFAULT_PERMISSIONS: '62c5cf9d72e005b64b488361',
     createDefaultPermissions() {
         return new Permissions({
             name: 'Created Default Permissions',

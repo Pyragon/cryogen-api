@@ -3,7 +3,7 @@ const router = express.Router();
 const ObjectId = require('mongoose').Types.ObjectId;
 
 const BBCodeManager = require('../../utils/bbcode-manager');
-const { mapPost } = require('../../utils/map-utils');
+const { mapPost, mapPostWithValues } = require('../../utils/map-utils');
 const { validate } = require('../../utils/validate');
 
 const Post = require('../../models/forums/Post');

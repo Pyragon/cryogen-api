@@ -23,6 +23,10 @@ const schema = new Schema({
     xp: {
         type: Array,
         required: true,
+    },
+    xpStamps: {
+        type: [Date],
+        required: true,
     }
 }, { timestamps: true });
 

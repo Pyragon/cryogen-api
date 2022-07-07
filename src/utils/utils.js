@@ -31,6 +31,18 @@ let formatUser = async(user) => {
         thanksGiven: await user.getThanksGiven(),
         totalLevel: await user.getTotalLevel(),
     };
+};
+
+let getLevelForXp = (skill, xp) => {
+    let points = 0;
+    let output = 0;
+    for (let lvl = 1; lvl <= (skill == DUNGEONEERING ? 120 : 99); lvl++) {
+        points += Math.floor(lvl + 300.0 * Math.pow(2.0, lvl / 7.0));
+        output = Math.floor(points / 4);
+        if ((output - 1) >= xp)
+            return lvl;
+    }
+    return skill == DUNGEONEERING ? 120 : 99;
 }
 
 const matchHtmlRegExp = /['&<>]/
@@ -87,4 +99,30 @@ async function filter(arr, callback) {
     return (await Promise.all(arr.map(async item => (await callback(item)) ? item : fail))).filter(i => i !== fail)
 }
 
-module.exports = { formatNameForProtocol, formatMessage, formatPlayerNameForDisplay, escapeHtml, formatDate, filter, formatUser };
+let ATTACK = 0,
+    DEFENCE = 1,
+    STRENGTH = 2,
+    HITPOINTS = 3,
+    RANGE = 4,
+    PRAYER = 5,
+    MAGIC = 6,
+    COOKING = 7,
+    WOODCUTTING = 8,
+    FLETCHING = 9,
+    FISHING = 10,
+    FIREMAKING = 11,
+    CRAFTING = 12,
+    SMITHING = 13,
+    MINING = 14,
+    HERBLORE = 15,
+    AGILITY = 16,
+    THIEVING = 17,
+    SLAYER = 18,
+    FARMING = 19,
+    RUNECRAFTING = 20,
+    HUNTER = 21,
+    CONSTRUCTION = 22,
+    SUMMONING = 23,
+    DUNGEONEERING = 24;
+
+module.exports = { formatNameForProtocol, formatMessage, formatPlayerNameForDisplay, getLevelForXp, escapeHtml, formatDate, filter, formatUser };

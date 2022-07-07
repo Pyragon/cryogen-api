@@ -1,9 +1,11 @@
 const express = require('express');
+const router = express.Router();
+
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { generateSecret, verify } = require('2fa-util');
-const { filter } = require('../utils/utils');
+const { filter, formatUser } = require('../utils/utils');
 
 const constants = require('../utils/constants');
 
@@ -17,36 +19,80 @@ const Usergroup = require('../models/forums/Usergroup');
 const UserActivity = require('../models/forums/UserActivity');
 const VisitorMessage = require('../models/VisitorMessage');
 const MiscData = require('../models/MiscData');
-const router = express.Router();
 
 const { formatNameForProtocol, formatPlayerNameForDisplay } = require('../utils/utils');
-const { validateUsername, validatePassword, validate, validateEmail, validateRecaptcha } = require('../utils/validate');
+const { validateUsername, validatePassword, validate, validateEmail, validateRecaptcha, validateDiscord } = require('../utils/validate');
+
+const validateOptions = {
+    displayName: {
+        type: 'string',
+        name: 'Display Name',
+        min: 3,
+        max: 12,
+        regex: /^[a-zA-Z0-9_ ]+$/,
+    },
+    email: validateEmail,
+    discord: validateDiscord,
+    displayGroup: {
+        type: 'string',
+        name: 'Display Group',
+        regex: /^[a-f\d]{24}$/i,
+    },
+    usergroups: {
+        type: ['string'],
+        name: 'Usergroups',
+        regex: /^[a-f\d]{24}$/i,
+    },
+};
+
+const validateForCreate = {
+    username: validateUsername,
+    ...validateOptions,
+    password: validatePassword
+};
+
+const validateForEdit = {
+    username: {
+        ...validateUsername,
+        required: false,
+    },
+    ...validateOptions,
+    password: {
+        ...validatePassword,
+        required: false,
+    }
+};
 
 router.post('/', async(req, res) => {
     let username = req.body.username;
+    let displayName = req.body.displayName;
     let password = req.body.password;
     let email = req.body.email;
+    let discord = req.body.discord;
     let displayGroup = req.body.displayGroup;
     let usergroups = req.body.usergroups;
     let token = req.body.token;
     let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
+    let admin = req.body.admin;
+
+    // if(admin && (!res.user || res.user.displayGroup.rights < 2)) {
+    //     res.status(403).send({ error: 'Insuficient permissions.' });
+    //     return;
+    // }
+
     username = username.toLowerCase().replace(" ", "_");
 
-    let recaptchaError = await validateRecaptcha(token);
-    if (recaptchaError) {
-        res.status(400).json({ error: recaptchaError });
-        return;
+    if (!admin) {
+        let recaptchaError = await validateRecaptcha(token);
+        if (recaptchaError) {
+            res.status(400).json({ error: recaptchaError });
+            return;
+        }
     }
 
-    let validateOptions = {
-        username: validateUsername,
-        password: validatePassword,
-        email: validateEmail
-    };
-
-    let [validated, error] = validate(validateOptions, { username, password, email });
-    if (!validated) {
+    let error = validate(validateForCreate, { username, displayName, password, email, discord, displayGroup, usergroups });
+    if (error) {
         res.status(400).json({ error });
         return;
     }
@@ -59,8 +105,8 @@ router.post('/', async(req, res) => {
             return;
         }
 
-        if (displayGroup) {
-            displayGroup = await Usergroup.findOne({ _id: displayGroup });
+        if (displayGroup && admin) {
+            displayGroup = await Usergroup.findById(displayGroup);
             if (!displayGroup) {
                 res.status(400).send({ error: 'Invalid display group.' });
                 return;
@@ -68,13 +114,18 @@ router.post('/', async(req, res) => {
         } else
             displayGroup = constants['REGULAR_USERGROUP'];
 
-        if (usergroups) {
+        //TODO - find better way to ensure player has the regular_usergroup either in display group or usergroups
+        if (usergroups && admin) {
             if (!usergroups.includes(constants['REGULAR_USERGROUP']) && displayGroup != constants['REGULAR_USERGROUP'])
                 usergroups.push(constants['REGULAR_USERGROUP']);
             for (let i = 0; i < usergroups.length; i++) {
-                let group = await Usergroup.findOne({ _id: usergroups[i] });
+                if (!ObjectId.isValid(usergroups[i])) {
+                    res.status(400).send({ error: 'Invalid usergroup ID.' });
+                    return;
+                }
+                let group = await Usergroup.findById(usergroups[i]);
                 if (!group) {
-                    res.status(400).send({ error: 'Invalid usergroup.' });
+                    res.status(400).send({ error: 'Invalid usergroup: ' + usergroups[i] });
                     return;
                 }
                 usergroups[i] = group;
@@ -82,13 +133,15 @@ router.post('/', async(req, res) => {
         }
 
 
-        let displayName = formatPlayerNameForDisplay(username);
+        displayName = displayName && admin ? displayName : formatPlayerNameForDisplay(username);
+        //TODO - create display name system and check against them
         let hash = await bcrypt.hash(password, 10);
         let sessionId = uuidv4();
 
         user = new User({
             username,
             email,
+            discord,
             displayName,
             hash,
             displayGroup,
@@ -98,13 +151,16 @@ router.post('/', async(req, res) => {
 
         await user.save();
 
-        let session = new Session({
-            user,
-            sessionId,
-            expires: Date.now() + 1000 * 60 * 30,
-        });
+        if (!admin) {
+            let session = new Session({
+                user,
+                sessionId,
+                expires: Date.now() + 1000 * 60 * 30,
+            });
 
-        await session.save();
+            await session.save();
+        } else
+            user = await formatUser(user);
 
         res.status(201).json({ success: true, sessionId, user });
     } catch (err) {
@@ -113,25 +169,141 @@ router.post('/', async(req, res) => {
     }
 });
 
+router.put('/:id', async(req, res) => {
+    if (!res.loggedIn || res.user.displayGroup.rights < 2) {
+        res.status(403).send({ error: 'Insuficient permissions.' });
+        return;
+    }
+
+    let id = req.params.id;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
+        return;
+    }
+
+
+    let displayName = req.body.displayName;
+    let email = req.body.email;
+    let discord = req.body.discord;
+    let displayGroup = req.body.displayGroup;
+    let usergroups = req.body.usergroups;
+    let password = req.body.password;
+
+    let error = validate(validateForEdit, { displayName, email, discord, displayGroup, usergroups, password });
+    if (error) {
+        res.status(400).send({ error });
+        return;
+    }
+
+    try {
+
+        let user = await User.findById(id);
+        if (!user) {
+            res.status(400).send({ error: 'User not found.' });
+            return;
+        }
+
+        if (!ObjectId.isValid(displayGroup)) {
+            res.status(400).send({ error: 'Invalid display group ID.' });
+            return;
+        }
+
+        displayGroup = await Usergroup.findById(displayGroup);
+        if (!displayGroup) {
+            res.status(400).send({ error: 'Invalid display group.' });
+            return;
+        }
+
+        if (!usergroups)
+            usergroups = [];
+
+        if (displayGroup._id !== constants['REGULAR_USERGROUP'] && !usergroups.includes(constants['REGULAR_USERGROUP']))
+            usergroups.push(constants['REGULAR_USERGROUP']);
+
+        for (let i = 0; i < usergroups.length; i++) {
+            if (!ObjectId.isValid(usergroups[i])) {
+                res.status(400).send({ error: 'Invalid usergroup ID.' });
+                return;
+            }
+            let group = await Usergroup.findById(usergroups[i]);
+            if (!group) {
+                res.status(400).send({ error: 'Invalid usergroup.' });
+                return;
+            }
+            usergroups[i] = group;
+        }
+
+        if (password) {
+            let hash = await bcrypt.hash(password, 10);
+            user.hash = hash;
+        }
+
+        user.displayName = displayName;
+        user.email = email;
+        user.discord = discord;
+        user.displayGroup = displayGroup;
+        user.usergroups = usergroups;
+
+        await user.save();
+
+        user = await formatUser(user);
+
+        res.status(200).json({ user });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: 'Error updating user.' });
+    }
+});
+
 router.delete('/:id', async(req, res) => {
     if (!res.loggedIn || res.user.displayGroup.rights < 2) {
         res.status(403).send({ error: 'Insufficient permissions.' });
         return;
     }
+
     let id = req.params.id;
-    let user = User.findOne({ username: id });
-    if (!user)
-        user = User.findById(id);
-    if (!user) {
-        res.status(404).send({ error: 'User not found.' });
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
         return;
     }
+
     try {
-        await user.deleteOne();
-        res.status(200).json({ success: true });
+
+        await User.findByIdAndDelete(id);
+
+        res.status(200).json();
+
     } catch (err) {
         console.error(err);
-        res.status(500).send({ error: 'Error deleting user.' });
+        res.status(500).send({ error });
+    }
+});
+
+router.get('/admin/:page', async(req, res) => {
+    if (!res.loggedIn || res.user.displayGroup.rights < 2) {
+        res.status(403).send({ error: 'Insufficient permissions.' });
+        return;
+    }
+
+    let page = Number(req.params.id) || 1;
+
+    try {
+
+        let users = await User.find({})
+            .sort({ username: 1 })
+            .skip((page - 1) * 10)
+            .limit(10);
+
+        users = await Promise.all(users.map(async(user) => await formatUser(user)));
+
+        let pageTotal = Math.ceil(await User.countDocuments() / 10);
+
+        res.status(200).send({ users, pageTotal });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error });
     }
 });
 
@@ -157,6 +329,36 @@ router.post('/logout', async(req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error logging out.' });
+    }
+});
+
+router.post('/revoke/:id', async(req, res) => {
+    if (!res.loggedIn || res.user.displayGroup.rights < 2) {
+        res.status(403).send({ error: 'Insufficient permissions.' });
+        return;
+    }
+
+    let id = req.params.id;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
+        return;
+    }
+
+    try {
+
+        let user = await User.findById(id);
+        if (!user) {
+            res.status(400).send({ error: 'User not found.' });
+            return;
+        }
+
+        await Session.deleteMany({ user: user._id });
+
+        res.status(200).send();
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error });
     }
 });
 
@@ -283,14 +485,7 @@ router.get('/:id', async(req, res) => {
             return;
         }
 
-        user = {
-            ...user._doc,
-            postCount: await user.getPostCount(),
-            threadsCreated: await user.getThreadsCreated(),
-            thanksReceived: await user.getThanksReceived(),
-            thanksGiven: await user.getThanksGiven(),
-            totalLevel: await user.getTotalLevel(),
-        };
+        user = await formatUser(user);
 
         res.status(200).json({ user });
     } catch (error) {
