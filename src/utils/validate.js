@@ -92,7 +92,7 @@ function validate(options, values) {
             continue;
         }
 
-        if (!value && option.required === true)
+        if (value == null && option.required === true)
             return `${name} is required`;
 
         if (!value) continue;
@@ -156,4 +156,4 @@ async function validateRecaptcha(token) {
     return false;
 }
 
-module.exports = { validate, validateUsername, validateEmail, validateUsers, validatePassword, validatePost, validateRecaptcha };
+module.exports = { validate, validateUsername, validateEmail, validateUsers, validatePassword, validatePost, validateRecaptcha, validateDiscord };
