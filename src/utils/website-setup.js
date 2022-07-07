@@ -23,6 +23,7 @@ const User = require('../models/User');
 const Usergroup = require('../models/forums/Usergroup');
 const Permissions = require('../models/forums/Permissions');
 const Subforum = require('../models/forums/Subforum');
+const BBCode = require('../models/forums/BBCode');
 
 async function setup() {
 
@@ -151,6 +152,18 @@ async function setup() {
     });
     console.log('Created announcements subforum', announcementsSubforum);
 
+    //create default bbcodes
+    console.log('Creating default bbcodes...');
+    for (let code of BBCODES) {
+        await BBCode.create({
+            name: code.name,
+            description: code.description,
+            matches: code.matches,
+            replace: code.replace,
+            example: code.example,
+        });
+    }
+
     console.log('Replace these values in constants.js');
     console.log('REGULAR_USERGROUP: \'' + groups['regular user']._id + '\',');
     console.log('BANNED_USERGROUP: \'' + groups['banned']._id + '\',');
@@ -165,9 +178,55 @@ async function setup() {
 
 setup();
 
-const BBCODES = [
-
-];
+const BBCODES = [{
+    name: 'Bold',
+    description: 'Bolds text between the tags',
+    matches: [
+        '\\[b\\](.*?)\\[\\/b\\]',
+    ],
+    replace: '<b>$1</b>',
+    example: '[b]Bold Text[/b]',
+}, {
+    name: 'Italic',
+    description: 'Italicises text between the tags',
+    matches: [
+        '\\[i\\](.*?)\\[\\/i\\]',
+    ],
+    replace: '<i>$1</i>',
+    example: '[i]Italic Text[/i]',
+}, {
+    name: 'Underline',
+    description: 'Underlines text between the tags',
+    matches: [
+        '\\[u\\](.*?)\\[\\/u\\]',
+    ],
+    replace: '<u>$1</u>',
+    example: '[u]Underline Text[/u]',
+}, {
+    name: 'Strikethrough',
+    description: 'Strikethroughs text between the tags',
+    matches: [
+        '\\[s\\](.*?)\\[\\/s\\]',
+    ],
+    replace: '<s>$1</s>',
+    example: '[s]Strikethrough Text[/s]',
+}, {
+    name: 'Image',
+    description: 'Inserts an image',
+    matches: [
+        '\\[img\\](.*?)\\[\\/img\\]',
+    ],
+    replace: '<img src="$1" alt="$1" />',
+    example: '[img]http://example.com/image.png[/img]',
+}, {
+    name: 'Link',
+    description: 'Inserts a link',
+    matches: [
+        '\\[url="?(.*?)"?\\](.*?)\\[\\/url\\]',
+    ],
+    replace: '<a href="$1">$2</a>',
+    example: '[url="http://example.com"]Example Link[/url]',
+}];
 
 const USERGROUPS = [{
     name: 'Owner',
