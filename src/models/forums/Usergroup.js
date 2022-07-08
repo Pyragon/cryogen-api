@@ -15,11 +15,11 @@ let schema = new Schema({
         type: String,
         required: false,
     },
-    imageBefore: {
+    htmlBefore: {
         type: String,
         required: false,
     },
-    imageAfter: {
+    htmlAfter: {
         type: String,
         required: false,
     },

@@ -63,9 +63,9 @@ router.put('/:id', async(req, res) => {
         return;
     }
 
-    let { name, rights, colour, imageBefore, imageAfter, title } = req.body;
+    let { name, rights, colour, htmlBefore, htmlAfter, title } = req.body;
 
-    let error = validate(validateOptions, { name, rights, colour, imageBefore, imageAfter, title });
+    let error = validate(validateOptions, { name, rights, colour, htmlBefore, htmlAfter, title });
     if (error) {
         res.status(400).send({ error });
         return;
@@ -83,8 +83,8 @@ router.put('/:id', async(req, res) => {
         usergroup.name = name;
         usergroup.rights = rights;
         usergroup.colour = colour;
-        usergroup.imageBefore = imageBefore;
-        usergroup.imageAfter = imageAfter;
+        usergroup.htmlBefore = htmlBefore;
+        usergroup.htmlAfter = htmlAfter;
         usergroup.title = title;
 
         await usergroup.save();
@@ -110,9 +110,9 @@ router.post('/', async(req, res) => {
     //     return;
     // }
 
-    let { name, rights, colour, imageBefore, imageAfter, title } = req.body;
+    let { name, rights, colour, htmlBefore, htmlAfter, title } = req.body;
 
-    let error = validate(validateOptions, { name, rights, colour, imageBefore, imageAfter, title });
+    let error = validate(validateOptions, { name, rights, colour, htmlBefore, htmlAfter, title });
     if (error) {
         res.status(400).send({ error });
         return;
@@ -124,8 +124,8 @@ router.post('/', async(req, res) => {
             name,
             rights,
             colour,
-            imageBefore,
-            imageAfter,
+            htmlBefore,
+            htmlAfter,
             title
         });
 
@@ -188,14 +188,14 @@ let validateOptions = {
         min: 1,
         max: 50,
     },
-    imageBefore: {
+    htmlBefore: {
         required: false,
         type: 'string',
         name: 'Image before',
         min: 1,
         max: 200,
     },
-    imageAfter: {
+    htmlAfter: {
         required: false,
         type: 'string',
         name: 'Image after',

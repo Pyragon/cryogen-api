@@ -82,10 +82,10 @@ async function setup() {
             data.title = group.title;
         if (group.colour)
             data.colour = group.colour;
-        if (group.imageBefore)
-            data.imageBefore = group.imageBefore;
-        if (group.imageAfter)
-            data.imageAfter = group.imageAfter;
+        if (group.htmlBefore)
+            data.htmlBefore = group.htmlBefore;
+        if (group.htmlAfter)
+            data.htmlAfter = group.htmlAfter;
         let saved = await Usergroup.create(data);
         groups[group.name.toLowerCase()] = saved._id;
     }
@@ -233,16 +233,18 @@ const USERGROUPS = [{
     rights: 2,
     title: 'Owner',
     colour: '#ff0000',
-    imageBefore: '/images/crowns/owner.png',
-    imageAfter: '',
+    htmlBefore: '/images/crowns/owner.png',
 }, {
     name: 'Admin',
     rights: 2,
     title: 'Administrator',
     colour: '#2E9AFE',
+    htmlBefore: '/images/crowns/admin.png',
 }, {
     name: 'Banned',
     rights: 0,
+    htmlBefore: '<s>',
+    htmlAfter: '</s>',
 }, {
     name: 'Chatbox Muted',
     rights: 0,
