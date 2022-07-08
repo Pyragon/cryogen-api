@@ -102,10 +102,6 @@ router.get('/:id/users', async(req, res) => {
 });
 
 router.get('/:id/posts/:page', async(req, res) => {
-    if (!res.loggedIn) {
-        res.status(403).send({ error: 'You must be logged in to view posts.' });
-        return;
-    }
 
     try {
 
