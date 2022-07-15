@@ -17,17 +17,11 @@ const userSchema = new Schema({
         type: String,
         required: false,
     },
-    displayName: {
-        type: String,
-        required: true,
-    },
-    lastDisplayName: {
-        type: String,
+    display: {
+        type: Schema.Types.ObjectId,
+        ref: 'DisplayName',
         required: false,
-    },
-    displayNameDelay: {
-        type: Date,
-        required: false,
+        autopopulate: true,
     },
     hash: {
         type: String,
@@ -80,6 +74,19 @@ const userSchema = new Schema({
         virtuals: true
     }
 });
+
+userSchema.set('toJSON', {
+    transform: function(doc, ret, opt) {
+        delete ret['email'];
+        delete ret['discord'];
+        delete ret['creationIp'];
+        delete ret['hash'];
+        delete ret['recoveryQuestions'];
+        delete ret['previousPasswords'];
+        delete ret['tfaKey'];
+        return ret
+    }
+})
 
 userSchema.plugin(require('mongoose-autopopulate'));
 

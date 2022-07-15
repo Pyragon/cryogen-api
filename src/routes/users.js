@@ -6,12 +6,14 @@ const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { generateSecret, verify } = require('2fa-util');
 const { filter, formatUser } = require('../utils/utils');
+const { nameInUse } = require('../utils/display');
 
 const constants = require('../utils/constants');
 
 const ObjectId = require('mongoose').Types.ObjectId;
 
 const User = require('../models/User');
+const DisplayName = require('../models/account/DisplayName');
 const Session = require('../models/Session');
 const Post = require('../models/forums/Post');
 const Thread = require('../models/forums/Thread');
@@ -132,17 +134,26 @@ router.post('/', async(req, res) => {
             }
         }
 
+        displayName = (displayName && admin) ? formatPlayerNameForDisplay(displayName) : formatPlayerNameForDisplay(username);
+        if (await nameInUse(displayName) || await nameInUse(formatPlayerNameForDisplay(username))) {
+            res.status(400).send({ error: 'Name already in use.' });
+            return;
+        }
 
-        displayName = displayName && admin ? displayName : formatPlayerNameForDisplay(username);
-        //TODO - create display name system and check against them
         let hash = await bcrypt.hash(password, 10);
         let sessionId = uuidv4();
+
+        let display = new DisplayName({
+            name: displayName,
+        });
+
+        await display.save();
 
         user = new User({
             username,
             email,
             discord,
-            displayName,
+            display,
             hash,
             displayGroup,
             usergroups,
@@ -233,12 +244,23 @@ router.put('/:id', async(req, res) => {
             usergroups[i] = group;
         }
 
+        displayName = formatPlayerNameForDisplay(displayName);
+
+        if (await nameInUse(displayName)) {
+            res.status(400).send({ error: 'Display name already in use.' });
+            return;
+        }
+
         if (password) {
             let hash = await bcrypt.hash(password, 10);
             user.hash = hash;
         }
 
-        user.displayName = displayName;
+        let display = await DisplayName.findById(user.display._id);
+        display.name = displayName;
+
+        await display.save();
+
         user.email = email;
         user.discord = discord;
         user.displayGroup = displayGroup;
@@ -270,7 +292,16 @@ router.delete('/:id', async(req, res) => {
 
     try {
 
-        await User.findByIdAndDelete(id);
+        //delete their display name
+        let user = await User.findById(id);
+        if (!user) {
+            res.status(400).send({ error: 'User not found.' });
+            return;
+        }
+
+        await DisplayName.findByIdAndDelete(user.display._id);
+
+        await user.delete();
 
         res.status(200).json();
 
@@ -369,7 +400,6 @@ router.post('/auth', async(req, res) => {
     let otp = req.body.otp;
 
     username = formatNameForProtocol(username);
-    console.log('attempting to auth:', username);
     try {
 
         let user = await User.findOne({ username });
@@ -486,7 +516,7 @@ router.get('/:id', async(req, res) => {
             return;
         }
 
-        user = await formatUser(user);
+        user = await formatUser(user, true);
 
         res.status(200).json({ user });
     } catch (error) {

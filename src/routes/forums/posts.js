@@ -45,7 +45,9 @@ router.get('/:id', async(req, res) => {
             return;
         }
 
-        post = mapPost(post, res.user);
+        console.log(post);
+        post = await mapPost(post, res.user);
+        console.log(post);
 
         res.status(200).json({ post });
 

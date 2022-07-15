@@ -13,7 +13,7 @@ router.get('/mini', async(req, res) => {
         let highscores = await Highscore.find({})
             .sort({ totalLevel: -1, totalXP: -1, totalXPStamp: -1 })
             .limit(10);
-        res.status(200).send(highscores);
+        res.status(200).send({ highscores });
     } catch (err) {
         console.error(err);
         res.status(500).send({ error: 'Error getting highscores.' });
@@ -29,11 +29,8 @@ router.post('/', async(req, res) => {
     let xp = req.body.xp;
     let totalXP = xp.reduce((a, b) => a + b, 0);
     let totalLevel = 0;
-    for (let i = 0; i < xp.length; i++) {
-        let lvl = getLevelForXp(i, xp[i]);
-        console.log(i, lvl);
-        totalLevel += lvl;
-    }
+    for (let i = 0; i < xp.length; i++)
+        totalLevel += getLevelForXp(i, xp[i]);
 
     let username = req.body.username;
     let user = await User.findOne({ username });
@@ -46,6 +43,7 @@ router.post('/', async(req, res) => {
         let highscore = await Highscore.findOne({ user });
         if (highscore) {
             highscore.totalLevel = totalLevel;
+            highscore.totalLevelStamp = highscore.totalLevel != totalLevel ? Date.now() : highscore.totalLevelStamp;
             highscore.totalXPStamp = highscore.totalXP != totalXP ? Date.now() : highscore.totalXPStamp;
             highscore.totalXP = totalXP;
             let stamps = [];
@@ -60,6 +58,7 @@ router.post('/', async(req, res) => {
             highscore = new Highscore({
                 user,
                 totalLevel: totalLevel,
+                totalLevelStamp: Date.now(),
                 totalXP: totalXP,
                 totalXPStamp: Date.now(),
                 xp: xp,

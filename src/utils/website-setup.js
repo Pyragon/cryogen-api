@@ -20,6 +20,7 @@ const { formatPlayerNameForDisplay } = require('./utils');
 const { validate, validateUsername, validatePassword, validateEmail } = require('./validate');
 
 const User = require('../models/User');
+const DisplayName = require('../models/account/DisplayName');
 const Usergroup = require('../models/forums/Usergroup');
 const Permissions = require('../models/forums/Permissions');
 const Subforum = require('../models/forums/Subforum');
@@ -90,11 +91,17 @@ async function setup() {
         groups[group.name.toLowerCase()] = saved._id;
     }
 
+    let display = new DisplayName({
+        name: displayName,
+    });
+
+    await display.save();
+
     //creating admin user with owner and admin usergroups
     console.log('Creating admin user...');
     let adminUser = await User.create({
         username,
-        displayName,
+        display,
         hash,
         email,
         creationIp: '127.0.0.1',
@@ -233,13 +240,13 @@ const USERGROUPS = [{
     rights: 2,
     title: 'Owner',
     colour: '#ff0000',
-    htmlBefore: '/images/crowns/owner.png',
+    htmlBefore: '<img src="/images/crowns/owner.png" />',
 }, {
     name: 'Admin',
     rights: 2,
     title: 'Administrator',
     colour: '#2E9AFE',
-    htmlBefore: '/images/crowns/admin.png',
+    htmlBefore: '<img src="/images/crowns/admin.png" />',
 }, {
     name: 'Banned',
     rights: 0,

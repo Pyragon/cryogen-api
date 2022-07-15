@@ -2,6 +2,7 @@ const BBCodeManager = require('./bbcode-manager');
 
 async function mapPost(post, user) {
 
+    console.log('mapping post');
     try {
 
         let bbcodeManager = new BBCodeManager(post);

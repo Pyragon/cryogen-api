@@ -22,9 +22,10 @@ let formatDate = (date, format = 'MMMM Do, YYYY h:mm:ss a') => {
     return moment(date).format(format);
 };
 
-let formatUser = async(user) => {
+let formatUser = async(user, toJSON) => {
+    let doc = toJSON ? user.toJSON() : user._doc;
     return {
-        ...user._doc,
+        ...doc,
         postCount: await user.getPostCount(),
         threadsCreated: await user.getThreadsCreated(),
         thanksReceived: await user.getThanksReceived(),

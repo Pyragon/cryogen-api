@@ -25,6 +25,7 @@
         "2fa-util": "^1.1.1",
         "axios": "^0.27.2",
         "bcrypt": "^5.0.1",
+        "cli-progress": "^3.11.2",
         "cookie-parser": "^1.4.6",
         "cors": "^2.8.5",
         "escape-html": "^1.0.3",
