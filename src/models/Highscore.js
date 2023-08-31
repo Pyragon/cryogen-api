@@ -13,7 +13,7 @@ const schema = new Schema({
         required: true,
     },
     totalLevelStamp: {
-        type: Number,
+        type: Date,
         required: true,
     },
     totalXP: {
