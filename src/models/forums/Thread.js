@@ -36,6 +36,16 @@ let schema = new Schema({
         required: false,
         default: false
     },
+    archivedStamp: {
+        type: Date,
+        required: false,
+    },
+    archivedBy: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: false,
+        autopopulate: true
+    },
     pinned: {
         type: Boolean,
         required: false,

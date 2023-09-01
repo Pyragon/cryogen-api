@@ -21,6 +21,15 @@ router.get('/:id', async(req, res) => {
             .sort({ createdAt: -1 })
             .limit(5)
             .fill('firstPost');
+
+        threads = await Promise.all(threads.map(async(thread) => {
+            let manager = new BBCodeManager(thread.firstPost);
+
+            return {
+                ...thread.toJSON(),
+                formatted: await manager.getFormattedPost(res.user)
+            }
+        }));
         res.status(200).send({ threads });
         return;
     } else if (id == 'latest') {
@@ -47,6 +56,10 @@ router.get('/:id', async(req, res) => {
         }
         if (!thread.subforum.permissions.checkCanSee(res.user, thread)) {
             res.status(403).send({ error: 'You do not have permission to view this thread.' });
+            return;
+        }
+        if (thread.archived === true && !thread.subforum.permissions.checkCanModerate(res.user, thread)) {
+            res.status(404).send({ error: 'Thread not found.' });
             return;
         }
         let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -113,7 +126,7 @@ router.get('/:id/posts/:page', async(req, res) => {
             return;
         }
 
-        let thread = await Thread.findById(id);
+        let thread = await Thread.findById(id).fill('firstPost');
         if (!thread) {
             res.status(404).send({ error: 'Thread not found.' });
             return;
@@ -131,7 +144,6 @@ router.get('/:id/posts/:page', async(req, res) => {
             received = [],
             given = [],
             levels = [];
-        let index = (page - 1) * 10;
         let users = [];
         posts = await Promise.all(posts.map(async(post) => {
             let user = users[post.author._id] || await User.findOne({ _id: post.author._id });
@@ -146,7 +158,7 @@ router.get('/:id/posts/:page', async(req, res) => {
                 levels[user.username] = await user.getTotalLevel();
             let bbcodeManager = new BBCodeManager(post);
             let results = {
-                index: index++,
+                first: post._id.equals(thread.firstPost._id),
                 ...post._doc,
                 formatted: await bbcodeManager.getFormattedPost(res.user),
                 postCount: counts[user.username],
@@ -409,6 +421,42 @@ router.post('/:id/lock', async(req, res) => {
     }
 });
 
+router.post('/:id/rename', async(req, res) => {
+    let id = req.params.id;
+    if (!ObjectId.isValid(id)) {
+        res.status(400).send({ error: 'Invalid ID.' });
+        return;
+    }
+    let title = req.body.title;
+
+    try {
+        let thread = await Thread.findById(id)
+            .fill('firstPost')
+            .fill('pageTotal')
+            .fill('lastPost')
+            .fill('postCount');
+        if (!thread) {
+            res.status(404).send({ error: 'Thread not found.' });
+            return;
+        }
+        if (!thread.subforum.permissions.checkCanModerate(res.user, thread)) {
+            res.status(403).send({ error: 'You do not have permission to rename this thread.' });
+            return;
+        }
+        let oldTitle = thread.title;
+        thread.title = title;
+        await thread.save();
+
+        saveModLog(res.user, thread._id, 'thread', 'Renamed thread from ' + oldTitle + ' to ' + title);
+
+        res.status(200).send({ thread });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ error: 'Error renaming thread.' });
+    }
+
+});
+
 router.post('/:id/archive', async(req, res) => {
     let id = req.params.id;
     if (!ObjectId.isValid(id)) {
@@ -430,6 +478,8 @@ router.post('/:id/archive', async(req, res) => {
             return;
         }
         thread.archived = !thread.archived;
+        thread.archivedStamp = thread.archived ? Date.now() : null;
+        thread.archivedBy = thread.archived ? res.user : null;
         await thread.save();
         saveModLog(res.user, thread._id, 'thread', thread.archived ? 'Archived' : 'Restored' + ' thread');
 

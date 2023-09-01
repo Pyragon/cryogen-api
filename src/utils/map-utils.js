@@ -2,7 +2,6 @@ const BBCodeManager = require('./bbcode-manager');
 
 async function mapPost(post, user) {
 
-    console.log('mapping post');
     try {
 
         let bbcodeManager = new BBCodeManager(post);
@@ -27,7 +26,7 @@ async function mapPostWithValues(post, user) {
 
         let bbcodeManager = new BBCodeManager(post);
 
-        return {
+        let value = {
             ...post._doc,
             formatted: await bbcodeManager.getFormattedPost(user),
             postCount: await user.getPostCount(),
@@ -36,6 +35,8 @@ async function mapPostWithValues(post, user) {
             thanks: await post.getThanks(),
             totalLevel: await user.getTotalLevel(),
         };
+
+        return value;
 
     } catch (error) {
         console.error(error);
@@ -57,6 +58,8 @@ async function mapPostsWithValues(posts, user) {
             levels = [];
 
         posts = await Promise.all(posts.map(async(post) => {
+
+            console.log(post.author.display.name + ' total level is ' + (await post.author.getTotalLevel()));
 
             let bbcodeManager = new BBCodeManager(post);
 

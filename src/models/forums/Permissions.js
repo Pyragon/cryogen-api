@@ -112,7 +112,7 @@ schema.methods.checkCanCreateThreads = function(user) {
 
 schema.methods.checkCanReply = function(user, thread) {
     if (!user) return false;
-    if (user.displayGroup._id.equals(constants.BANNED_USERGROUP)) return false;
+    if (user.displayGroup._id.equals(constants['BANNED_USERGROUP'])) return false;
     let data = this.canReply;
     if (data.includes('-1') || data.includes('-2')) return true;
     for (let id of data)

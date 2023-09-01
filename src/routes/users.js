@@ -7,6 +7,7 @@ const { v4: uuidv4 } = require('uuid');
 const { generateSecret, verify } = require('2fa-util');
 const { filter, formatUser } = require('../utils/utils');
 const { nameInUse } = require('../utils/display');
+const BBCodeManager = require('../utils/bbcode-manager');
 
 const constants = require('../utils/constants');
 
@@ -525,6 +526,30 @@ router.get('/:id', async(req, res) => {
     }
 });
 
+router.get('/:id/about', async(req, res) => {
+    let id = req.params.id;
+
+    try {
+
+        let user = await User.findById(id);
+        if (!user) {
+            res.status(404).send({ error: 'User not found.' });
+            return;
+        }
+
+        let manager = new BBCodeManager(user.settings.about);
+
+        let formatted = await manager.getFormattedText(res.user);
+
+        res.status(200).json({ about: formatted });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: 'Error getting user.' });
+    }
+
+});
+
 router.get('/:id/threads/:page', async(req, res) => {
 
     let id = req.params.id;
@@ -633,6 +658,11 @@ router.get('/:id/messages/:page', async(req, res) => {
             return;
         }
 
+        if (!user.settings.allowVisitorMessages) {
+            res.status(403).send({ error: 'User does not allow visitor messages.' });
+            return;
+        }
+
         let messages = await VisitorMessage.find({ user })
             .sort({ createdAt: -1 })
             .skip((page - 1) * 5)
@@ -649,10 +679,9 @@ router.get('/:id/messages/:page', async(req, res) => {
 
 router.post('/:id/messages', async(req, res) => {
     if (!res.loggedIn) {
-        res.status(401).send({ error: 'Not logged in.' });
+        res.status(401).send({ error: 'You must be logged in to leave a visitor message' });
         return;
     }
-    //TODO - ability to disable visitors section
 
     let id = req.params.id;
 
@@ -671,6 +700,11 @@ router.post('/:id/messages', async(req, res) => {
         let user = await User.findById(id);
         if (!user) {
             res.status(404).send({ error: 'User not found.' });
+            return;
+        }
+
+        if (!user.settings.allowVisitorMessages) {
+            res.status(403).send({ error: 'User does not allow visitor messages.' });
             return;
         }
 

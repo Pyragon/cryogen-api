@@ -2,6 +2,7 @@ const mongoose = require('mongoose-fill');
 const Post = require('./forums/Post');
 const Schema = mongoose.Schema;
 
+require('./account/Settings');
 const Usergroup = require('./forums/Usergroup');
 const Highscore = require('./Highscore');
 const Thank = require('./forums/Thank');
@@ -34,6 +35,12 @@ const userSchema = new Schema({
     discord: {
         type: String,
         required: false,
+    },
+    settings: {
+        type: Schema.Types.ObjectId,
+        ref: 'UserSetting',
+        required: true,
+        autopopulate: true,
     },
     creationIp: {
         type: String,
@@ -77,8 +84,10 @@ const userSchema = new Schema({
 
 userSchema.set('toJSON', {
     transform: function(doc, ret, opt) {
-        delete ret['email'];
-        delete ret['discord'];
+        if (doc.settings.showEmail === false)
+            delete ret['email'];
+        if (doc.settings.showDiscord === false)
+            delete ret['discord'];
         delete ret['creationIp'];
         delete ret['hash'];
         delete ret['recoveryQuestions'];
@@ -107,6 +116,8 @@ userSchema.methods.getThanksGiven = async function() {
 };
 
 userSchema.methods.getTotalLevel = async function() {
+
+    if (!this.settings.showInGameTotal) return -1;
 
     const data = await Highscore.findOne({ user: this._id });
     if (!data) return -1;

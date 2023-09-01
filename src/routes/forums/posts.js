@@ -100,7 +100,7 @@ router.post('/', async(req, res) => {
 
         await post.save();
 
-        post = mapPostWithValues(post);
+        post = await mapPostWithValues(post, post.author);
 
         res.status(201).json({ post });
     } catch (err) {
@@ -124,7 +124,7 @@ router.delete('/:id', async(req, res) => {
 
     try {
 
-        let post = await Post.findById(id);
+        let post = await Post.findById(id).fill('thread.firstPost');
         if (!post) {
             res.status(404).send({ error: 'Post not found.' });
             return;
@@ -135,8 +135,7 @@ router.delete('/:id', async(req, res) => {
             return;
         }
 
-        let firstPost = await post.find({ thread: post.thread._id }).sort({ createdAt: 1 }).limit(1);
-        if (firstPost._id.equals(post._id)) {
+        if (post.thread.firstPost._id.equals(post._id)) {
             res.status(403).send({ error: 'You cannot delete the first post of a thread. Delete the thread above instead.' });
             return;
         }
@@ -189,7 +188,7 @@ router.put('/:id', async(req, res) => {
 
         await post.save();
 
-        post = mapPost(post);
+        post = await mapPost(post, res.user);
 
         res.status(200).json({ post });
 

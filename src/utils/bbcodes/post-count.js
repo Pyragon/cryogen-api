@@ -11,7 +11,7 @@ let format = async(formatted, viewer, post) => {
         let postContent = match[2];
 
         if (!viewer || (await viewer.getPostCount() < postCount && !viewer._id.equals(post.author._id))) {
-            formatted = formatted.replace(reg, '<span style="color: red;">This post requires a post count of ' + postCount + ' to view</span>');
+            formatted = formatted.replace(reg, `<span style="color: red;">This text is hidden. You require a post count of ${postCount} to view it.</span>`);
             continue;
         }
 

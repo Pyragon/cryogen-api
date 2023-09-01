@@ -231,8 +231,41 @@ const BBCODES = [{
     matches: [
         '\\[url="?(.*?)"?\\](.*?)\\[\\/url\\]',
     ],
-    replace: '<a href="$1">$2</a>',
+    replace: '<a href="$1" className="link">$2</a>',
     example: '[url="http://example.com"]Example Link[/url]',
+}, {
+    name: 'Font Size',
+    description: 'Changes the font size',
+    matches: [
+        '\\[size=[0-9]{1,2}\\](.*?)\\[\\/size\\]',
+    ],
+    replace: '<span style="font-size:$1px">$2</span>',
+    example: '[size=20]20px Text[/size]',
+}, {
+    name: 'Font Color',
+    description: 'Changes the font color',
+    matches: [
+        '\\[colou?r=([a-zA-Z]+)\\](.*?)\\[\\/colou?r\\]',
+        '\\[colou?r=#([a-zA-Z0-9]{6})\\](.*?)\\[\\/colou?r\\]'
+    ],
+    replace: '<span style="color:$1">$2</span>',
+    example: '[color=#FF0000]Red Text[/color]',
+}, {
+    name: 'Center',
+    description: 'Centers text',
+    matches: [
+        '\\[center\\](.*?)\\[\\/center\\]',
+    ],
+    replace: '<div style="text-align:center">$1</div>',
+    example: '[center]Centered Text[/center]',
+}, {
+    name: 'Align',
+    description: 'Aligns text',
+    matches: [
+        '\\[align=(left|center|right)\\](.*?)\\[\\/align\\]',
+    ],
+    replace: '<div style="text-align:$1">$2</div>',
+    example: '[align=left]Left Text[/align]',
 }];
 
 const USERGROUPS = [{

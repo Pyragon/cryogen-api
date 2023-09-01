@@ -24,8 +24,26 @@ class BBCodeManager {
     }
 
     constructor(post) {
-        this.content = escapeHtml(post.content);
+        this.content = escapeHtml(post.content || post);
         this.post = post;
+    }
+
+    async getFormattedText(viewer) {
+        let formatted = this.content;
+        for (let code of BBCodeManager.codes) {
+            if (code.regexp) continue;
+            for (let match of code.matches) {
+                while (true) {
+                    let regexp = new RegExp(match, 'gi');
+                    let matched;
+                    if (!(matched = formatted.match(regexp)))
+                        break;
+
+                    formatted = formatted.replace(regexp, code.replace);
+                }
+            }
+        }
+        return formatted;
     }
 
     async getFormattedPost(viewer) {
